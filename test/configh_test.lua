@@ -31,14 +31,15 @@ function testcase.check_header()
     local ok, err = cfgh:check_header('stdio.h')
     assert(ok, err)
     -- confirm that the macro is defined in macro list
-    assert.contains(cfgh.macros, '#define STDIO_H 1')
+    assert.re_match(table.concat(cfgh.macros), '^#define HAVE_STDIO_H 1', 'm')
 
     -- test that add commented macro if the header is not available
     ok, err = cfgh:check_header('this_is_unknown_header_for_test.h')
     assert.is_false(ok)
     assert.is_string(err)
-    assert.contains(cfgh.macros,
-                    '/* #define THIS_IS_UNKNOWN_HEADER_FOR_TEST_H 0 */')
+    assert.re_match(table.concat(cfgh.macros, '\n'),
+                    '^/\\* #undef HAVE_THIS_IS_UNKNOWN_HEADER_FOR_TEST_H \\*/',
+                    'm')
 end
 
 function testcase.check_func()
@@ -48,13 +49,15 @@ function testcase.check_func()
     local ok, err = cfgh:check_func('stdio.h', 'printf')
     assert(ok, err)
     -- confirm that the macro is defined in macro list
-    assert.contains(cfgh.macros, '#define HAVE_PRINTF 1')
+    assert.re_match(table.concat(cfgh.macros, '\n'), '^#define HAVE_PRINTF 1',
+                    'm')
 
     -- test that add commented macro if the function is not available
     ok, err = cfgh:check_func(nil, 'printf')
     assert.is_false(ok)
     assert.is_string(err)
-    assert.contains(cfgh.macros, '/* #define HAVE_PRINTF 0 */')
+    assert.re_match(table.concat(cfgh.macros, '\n'),
+                    '^/\\* #undef HAVE_PRINTF \\*/', 'm')
 end
 
 function testcase.flush()
@@ -72,7 +75,7 @@ function testcase.flush()
     local content = f:read('*a')
     f:close()
     for _, pattern in ipairs({
-        '\n#define STDIO_H 1\n',
+        '\n#define HAVE_STDIO_H 1\n',
         '\n#define HAVE_PRINTF 1\n',
     }) do
         assert.match(content, pattern)
