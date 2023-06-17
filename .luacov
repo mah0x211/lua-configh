@@ -1,0 +1,7 @@
+codefromstrings = false
+runreport = true
+deletestats = true
+modules = {
+    ["configh"] = "lib/configh.lua",
+    ["configh.executor"] = "lib/executor.lua",
+}
