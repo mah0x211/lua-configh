@@ -94,12 +94,15 @@ local function define_header(self, header, is_exists)
     assert(type(is_exists) == 'boolean', 'is_exists must be boolean')
 
     local defname = gsub(header, '[^%w]', '_'):upper()
-    local line = '#define ' .. defname
+    local fmt = {
+        format('/* Define to 1 if you have the <%s> header file. */', header),
+    }
     if is_exists then
-        self.macros[#self.macros + 1] = line .. ' 1'
+        fmt[#fmt + 1] = format('#define HAVE_%s 1', defname)
     else
-        self.macros[#self.macros + 1] = '/* ' .. line .. ' 0 */'
+        fmt[#fmt + 1] = format('/* #undef HAVE_%s */', defname)
     end
+    self.macros[#self.macros + 1] = concat(fmt, '\n')
 end
 
 --- check_header check whether the header file exists
@@ -129,12 +132,15 @@ local function define_function(self, func, is_exists)
     assert(type(is_exists) == 'boolean', 'is_exists must be boolean')
 
     local defname = gsub(func, '[^%w]', '_'):upper()
-    local line = '#define HAVE_' .. defname
+    local fmt = {
+        format("/* Define to 1 if you have the `%s' function. */", func),
+    }
     if is_exists then
-        self.macros[#self.macros + 1] = line .. ' 1'
+        fmt[#fmt + 1] = format('#define HAVE_%s 1', defname)
     else
-        self.macros[#self.macros + 1] = '/* ' .. line .. ' 0 */'
+        fmt[#fmt + 1] = format('/* #undef HAVE_%s */', defname)
     end
+    self.macros[#self.macros + 1] = concat(fmt, '\n')
 end
 
 --- check_func check whether the function exists
