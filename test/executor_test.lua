@@ -124,3 +124,21 @@ function testcase.check_func()
     assert.match(err, 'func must be a string')
 end
 
+function testcase.check_type()
+    local exec = executor('gcc')
+
+    -- test that check whether the type is available
+    local ok, err = exec:check_type('sys/socket.h', 'struct sockaddr_storage')
+    assert.is_true(ok)
+    assert.is_nil(err)
+
+    -- test that return false if the types is not available
+    ok, err = exec:check_type(nil, 'struct sockaddr_storage')
+    assert.is_false(ok)
+    assert.is_string(err)
+
+    -- test that throws an error if type argument is not string
+    err = assert.throws(exec.check_type, exec, 'stdio.h', 123)
+    assert.match(err, 'type must be a string')
+end
+

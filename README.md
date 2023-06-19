@@ -139,6 +139,21 @@ checks whether the specified function exists or not.
 - `err:string`: error message if the generated source code fails to compile.
 
 
+## ok, err = configh:check_type( headers, typename )
+
+checks whether the specified type exists or not.
+
+**Parameters**
+
+- `headers:string|string[]`: a header file name or array of header file names.
+- `type:string`: a type name.
+
+**Returns**
+
+- `ok:boolean`: `true` on success, or `false` on failure.
+- `err:string`: error message if the generated source code fails to compile.
+
+
 ## ok, err = configh:flush( pathname )
 
 flushes the definition macros to the specified pathname.
