@@ -104,7 +104,7 @@ local function compile(exec, srcfile)
 end
 
 --- makecsrc create a new c source file
---- @param headers string|string[]
+--- @param headers? string|string[]
 --- @param code string?
 --- @return string pathname
 function Executor:makecsrc(headers, code)
