@@ -85,6 +85,19 @@ function Configh:flush(pathname)
     return true
 end
 
+--- set_feature set a feature macro definition
+--- @param name string
+--- @param value string?
+function Configh:set_feature(name, value)
+    self.exec:set_feature(name, value)
+end
+
+--- unset_feature unset a feature macro definition
+--- @param name string
+function Configh:unset_feature(name)
+    self.exec:unset_feature(name)
+end
+
 --- define_header write a header definition to the file
 --- @param self configh
 --- @param header string
