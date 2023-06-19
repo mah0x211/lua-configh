@@ -211,6 +211,16 @@ function Executor:check_func(headers, func)
     return compile(self, self:makecsrc(headers, format(code, func)))
 end
 
+--- check_type check the type is available
+--- @param headers string|string[]
+--- @param ctype string
+--- @return boolean ok
+--- @return string? err
+function Executor:check_type(headers, ctype)
+    assert(type(ctype) == 'string', 'type must be a string')
+    return compile(self, self:makecsrc(headers, format('%s x', ctype)))
+end
+
 Executor = require('metamodule').new(Executor)
 return Executor
 

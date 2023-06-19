@@ -167,5 +167,21 @@ function Configh:check_func(headers, func)
     return false, err
 end
 
+--- check_type check whether the type exists
+--- @param headers string|string[]
+--- @param ctype string
+--- @return boolean ok true if the type exists
+--- @return string? err error for compile the generated source file
+--- @return string? errerr error for failed to define macro
+function Configh:check_type(headers, ctype)
+    local ok, err = self.exec:check_type(headers, ctype)
+    if ok then
+        define_macro(self, 'type', ctype, true)
+        return true
+    end
+    define_macro(self, 'type', ctype, false)
+    return false, err
+end
+
 Configh = require('metamodule').new(Configh)
 return Configh

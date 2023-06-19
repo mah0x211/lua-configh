@@ -91,6 +91,24 @@ function testcase.check_func()
                     '^/\\* #undef HAVE_PRINTF \\*/', 'm')
 end
 
+function testcase.check_type()
+    local cfgh = configh('gcc')
+
+    -- test that check whether the type is available
+    local ok, err = cfgh:check_type('sys/socket.h', 'struct sockaddr_storage')
+    assert(ok, err)
+    -- confirm that the macro is defined in macro list
+    assert.re_match(table.concat(cfgh.macros, '\n'),
+                    '^#define HAVE_STRUCT_SOCKADDR_STORAGE 1', 'm')
+
+    -- test that add commented macro if the type is not available
+    ok, err = cfgh:check_type(nil, 'struct sockaddr_storage')
+    assert.is_false(ok)
+    assert.is_string(err)
+    assert.re_match(table.concat(cfgh.macros, '\n'),
+                    '^/\\* #undef HAVE_STRUCT_SOCKADDR_STORAGE \\*/', 'm')
+end
+
 function testcase.flush()
     local cfgh = configh('gcc')
     assert(cfgh:check_header('stdio.h'))
