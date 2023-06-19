@@ -142,3 +142,28 @@ function testcase.check_type()
     assert.match(err, 'type must be a string')
 end
 
+function testcase.check_member()
+    local exec = executor('gcc')
+
+    -- test that check whether the member field is available
+    local ok, err = exec:check_member('sys/socket.h', 'struct sockaddr',
+                                      'sa_family')
+    assert.is_true(ok)
+    assert.is_nil(err)
+
+    -- test that return false if the member field is not available
+    ok, err = exec:check_member('sys/socket.h', 'struct sockaddr',
+                                'unknown_member')
+    assert.is_false(ok)
+    assert.is_string(err)
+
+    -- test that throws an error if type argument is not string
+    err = assert.throws(exec.check_member, exec, 'sys/socket.h', 123)
+    assert.match(err, 'type must be a string')
+
+    -- test that throws an error if member argument is not string
+    err = assert.throws(exec.check_member, exec, 'sys/socket.h',
+                        'struct sockaddr', 123)
+    assert.match(err, 'member must be a string')
+end
+

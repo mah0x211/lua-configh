@@ -221,6 +221,19 @@ function Executor:check_type(headers, ctype)
     return compile(self, self:makecsrc(headers, format('%s x', ctype)))
 end
 
+--- check_member check the member field is available
+--- @param headers string|string[]
+--- @param ctype string
+--- @param member string
+--- @return boolean ok
+--- @return string? err
+function Executor:check_member(headers, ctype, member)
+    assert(type(ctype) == 'string', 'type must be a string')
+    assert(type(member) == 'string', 'member must be a string')
+    return compile(self, self:makecsrc(headers, format('%s x; (void)x.%s',
+                                                       ctype, member)))
+end
+
 Executor = require('metamodule').new(Executor)
 return Executor
 
