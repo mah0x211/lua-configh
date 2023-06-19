@@ -98,17 +98,33 @@ function Configh:unset_feature(name)
     self.exec:unset_feature(name)
 end
 
---- define_header write a header definition to the file
+local DECL_NAME_FORMAT = {
+    header = '<%s>',
+    ['function'] = "`%s'",
+    type = "`%s'",
+    member = "`%s'",
+}
+
+--- define_macro to add a macro definition to the macros list
 --- @param self configh
---- @param header string
+--- @param decl string
+--- | 'header'
+--- | 'function'
+--- | 'type'
+--- | 'member'
+--- @param name string
 --- @param is_exists boolean
-local function define_header(self, header, is_exists)
-    assert(type(header) == 'string', 'header must be string')
+local function define_macro(self, decl, name, is_exists)
+    -- check arguments
+    assert(type(decl) == 'string' and DECL_NAME_FORMAT[decl],
+           "decl must be 'header', 'function', 'type' or 'member'")
+    assert(type(name) == 'string', 'name must be string')
     assert(type(is_exists) == 'boolean', 'is_exists must be boolean')
 
-    local defname = gsub(header, '[^%w]', '_'):upper()
+    local defname = gsub(name, '[^%w]', '_'):upper()
     local fmt = {
-        format('/* Define to 1 if you have the <%s> header file. */', header),
+        format('/* Define to 1 if you have the ' .. DECL_NAME_FORMAT[decl] ..
+                   ' %s. */', name, decl),
     }
     if is_exists then
         fmt[#fmt + 1] = format('#define HAVE_%s 1', defname)
@@ -128,32 +144,11 @@ function Configh:check_header(header)
 
     local ok, err = self.exec:check_header(header)
     if ok then
-        define_header(self, header, true)
+        define_macro(self, 'header', header, true)
         return true
     end
-
-    define_header(self, header, false)
+    define_macro(self, 'header', header, false)
     return false, err
-end
-
---- define_function write a function definition to the file
---- @param self configh
---- @param func string
---- @param is_exists boolean
-local function define_function(self, func, is_exists)
-    assert(type(func) == 'string', 'func must be string')
-    assert(type(is_exists) == 'boolean', 'is_exists must be boolean')
-
-    local defname = gsub(func, '[^%w]', '_'):upper()
-    local fmt = {
-        format("/* Define to 1 if you have the `%s' function. */", func),
-    }
-    if is_exists then
-        fmt[#fmt + 1] = format('#define HAVE_%s 1', defname)
-    else
-        fmt[#fmt + 1] = format('/* #undef HAVE_%s */', defname)
-    end
-    self.macros[#self.macros + 1] = concat(fmt, '\n')
 end
 
 --- check_func check whether the function exists
@@ -165,10 +160,10 @@ end
 function Configh:check_func(headers, func)
     local ok, err = self.exec:check_func(headers, func)
     if ok then
-        define_function(self, func, true)
+        define_macro(self, 'function', func, true)
         return true
     end
-    define_function(self, func, false)
+    define_macro(self, 'function', func, false)
     return false, err
 end
 
