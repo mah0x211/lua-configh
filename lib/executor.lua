@@ -35,6 +35,7 @@ local gcfn = require('gcfn')
 
 --- @class configh.executor
 --- @field cc string
+--- @field features table<string, integer>|table<integer, string>
 --- @field buffile string
 --- @field buf file*
 local Executor = {}
@@ -56,7 +57,7 @@ function Executor:init(cc)
     end
 
     self.cc = cc or os.getenv('CC') or 'gcc'
-
+    self.features = {}
     self.buffile = assert(tmpname())
     self.buf = assert(open(self.buffile, 'r'))
     -- create new gcfn object
@@ -106,7 +107,7 @@ end
 --- @param headers string|string[]
 --- @param code string?
 --- @return string pathname
-local function makecsrc(headers, code)
+function Executor:makecsrc(headers, code)
     -- check headers
     if headers == nil then
         headers = {}
@@ -127,7 +128,13 @@ local function makecsrc(headers, code)
     headers = concat(includes, '\n')
 
     -- check code
-    assert(code == nil or type(code) == 'string', 'code must be a string or nil')
+    if code ~= nil then
+        assert(type(code) == 'string', 'code must be a string or nil')
+        code = code .. ';'
+    end
+
+    -- feature macros
+    local features = concat(self.features, '\n')
 
     -- create c source file
     local pathname = tmpname() .. '.c'
@@ -136,11 +143,13 @@ local function makecsrc(headers, code)
     local ok, err = f:write(format(concat({
         '%s',
         '',
+        '%s',
+        '',
         'int main() {',
-        '    %s;',
+        '    %s',
         '    return 0;',
         '}',
-    }, '\n'), headers, code or ''))
+    }, '\n'), features, headers, code or ''))
     f:close()
     if not ok then
         remove(pathname)
@@ -150,12 +159,45 @@ local function makecsrc(headers, code)
     return pathname
 end
 
+--- set_feature define the feature macro in testing
+--- @param name string
+--- @param value? string
+function Executor:set_feature(name, value)
+    assert(type(name) == 'string', 'name must be string')
+    assert(type(value) == 'string' or value == nil,
+           'value must be string or nil')
+
+    local feature = concat({
+        '#define',
+        name,
+        value,
+    }, ' ')
+    local idx = self.features[name]
+    if not idx then
+        idx = #self.features + 1
+    end
+    self.features[idx] = feature
+    self.features[name] = idx
+end
+
+--- unset_feature undefine the feature macro in testing
+--- @param name string
+function Executor:unset_feature(name)
+    assert(type(name) == 'string', 'name must be string')
+
+    local idx = self.features[name]
+    if idx then
+        self.features[name] = nil
+        table.remove(self.features, idx)
+    end
+end
+
 --- check_header check the header is available
 --- @param headers string|string[]
 --- @return boolean ok
 --- @return string? err
 function Executor:check_header(headers)
-    return compile(self, makecsrc(headers))
+    return compile(self, self:makecsrc(headers))
 end
 
 --- check_func check the function is available
@@ -166,7 +208,7 @@ end
 function Executor:check_func(headers, func)
     assert(type(func) == 'string', 'func must be a string')
     local code = 'void (*function_pointer)(void) = (void (*)(void))%s'
-    return compile(self, makecsrc(headers, format(code, func)))
+    return compile(self, self:makecsrc(headers, format(code, func)))
 end
 
 Executor = require('metamodule').new(Executor)

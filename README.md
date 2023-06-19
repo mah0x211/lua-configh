@@ -22,6 +22,9 @@ local configh = require('configh')
 -- create configh object
 local cfgh = configh('gcc')
 
+-- set feature macro
+cfgh:set_feature('_GNU_SOURCE')
+
 -- check whether the specified header file exists or not.
 local ok, err = cfgh:check_header('stdio.h')
 if not ok then
@@ -85,6 +88,26 @@ creates a `configh` object.
 **Returns**
 
 - `cfgh:configh`: `configh` object.
+
+
+## configh:set_feature( name [, value] )
+
+defines a feature macro in generated source code.
+
+**Parameters**
+
+- `name:string`: a feature macro name.
+- `value:string?`: a feature macro value.
+
+
+## configh:unset_feature( name )
+
+remove a feature macro that set by `configh:set_feature` method.
+
+**Parameters**
+
+- `name:string`: a feature macro name.
+- `value:string?`: a feature macro value.
 
 
 ## ok, err = configh:check_header( header )

@@ -24,6 +24,37 @@ function testcase.new_configh()
                  'cc argument or CC environment variable must contain compiler name')
 end
 
+function testcase.set_and_unset_featrue()
+    local cfgh = configh('gcc')
+
+    -- test that set feature macro to use in c source file
+    cfgh:set_feature('_GNU_SOURCE')
+    local pathname = cfgh.exec:makecsrc()
+    local f = assert(io.open(pathname, 'r'))
+    os.remove(pathname)
+    local src = f:read('*a')
+    f:close()
+    assert.re_match(src, '^#define _GNU_SOURCE', 'm')
+
+    -- test that replace new feature macro
+    cfgh:set_feature('_GNU_SOURCE', '123')
+    pathname = cfgh.exec:makecsrc()
+    f = assert(io.open(pathname, 'r'))
+    os.remove(pathname)
+    src = f:read('*a')
+    f:close()
+    assert.re_match(src, '^#define _GNU_SOURCE 123', 'm')
+
+    -- test that remove feature macro
+    cfgh:unset_feature('_GNU_SOURCE')
+    pathname = cfgh.exec:makecsrc()
+    f = assert(io.open(pathname, 'r'))
+    os.remove(pathname)
+    src = f:read('*a')
+    f:close()
+    assert.not_re_match(src, '^#define _GNU_SOURCE', 'm')
+end
+
 function testcase.check_header()
     local cfgh = configh('gcc')
 
