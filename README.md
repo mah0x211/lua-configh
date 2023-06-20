@@ -110,6 +110,15 @@ remove a feature macro that set by `configh:set_feature` method.
 - `value:string?`: a feature macro value.
 
 
+## configh:output_status( enabled )
+
+enables or disables the output of status messages to stdout when the `configh:check_header`, `configh:check_func`, `configh:check_type`, `configh:check_member` methods are called.
+
+**Parameters**
+
+- `enabled:boolean`: `true` to enable, or `false` to disable.
+
+
 ## ok, err = configh:check_header( header )
 
 checks whether the specified header file exists or not.

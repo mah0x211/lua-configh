@@ -14,6 +14,7 @@ dependencies = {
     "gcfn >= 0.3.0",
     "metamodule >= 0.4.1",
     "io-truncate >= 0.1.0",
+    "print >= 0.3.0",
 }
 build = {
     type = "builtin",
