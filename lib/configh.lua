@@ -26,11 +26,13 @@ local gsub = string.gsub
 local open = io.open
 local date = os.date
 local remove = os.remove
+local vformat = require('print').format
 local executor = require('configh.executor')
 
 --- @class configh
 --- @field macros string[]
 --- @field exec configh.executor
+--- @field output boolean
 local Configh = {}
 
 --- new create a new configh object
@@ -41,8 +43,27 @@ function Configh:init(cc)
         '',
     }
     self.exec = executor(cc)
+    self.output = false
 
     return self
+end
+
+--- output_status output the execution status
+--- @param enabled boolean
+function Configh:output_status(enabled)
+    assert(type(enabled) == 'boolean', 'enabled must be boolean')
+    self.output = enabled
+    io.stdout:setvbuf('no')
+end
+
+--- printf output the message to stdout
+--- @param self configh
+--- @param fmt string
+--- @param ... any
+local function printf(self, fmt, ...)
+    if self.output then
+        io.stdout:write(vformat(fmt, ...))
+    end
 end
 
 --- flush flush the generated definitions to the file
@@ -134,6 +155,56 @@ local function define_macro(self, decl, name, is_exists)
     self.macros[#self.macros + 1] = concat(fmt, '\n')
 end
 
+local DECL_METHOD = {
+    header = 'check_header',
+    ['function'] = 'check_func',
+    type = 'check_type',
+    member = 'check_member',
+}
+
+--- do_check do the check
+--- @param self configh
+--- @param decl string
+--- | 'header'
+--- | 'function'
+--- | 'type'
+--- | 'member'
+--- @param params table<string, string>|table<'headers', string[]>
+--- @return boolean ok
+--- @return string? err
+local function check(self, decl, params)
+
+    assert(type(decl) == 'string' and DECL_METHOD[decl],
+           "decl must be 'header', 'function', 'type' or 'member'")
+    assert(type(params) == 'table', 'params must be table')
+    assert(type(params.defname) == 'string', 'params.defname must be string')
+    assert(type(params[decl]) == 'string' or type(params[decl]) == 'table',
+           'params.' .. decl .. ' must be string or table')
+
+    local method = DECL_METHOD[decl]
+
+    printf(self, 'check %s: %s ... ', decl, params[decl])
+    local ok, err
+    if decl == 'header' then
+        ok, err = self.exec[method](self.exec, params.header)
+    elseif decl == 'member' then
+        ok, err = self.exec[method](self.exec, params.headers, params.type,
+                                    params.member)
+    else
+        ok, err = self.exec[method](self.exec, params.headers, params[decl])
+    end
+
+    if ok then
+        printf(self, 'found\n')
+    else
+        printf(self, 'not found\n')
+        printf(self, '  >  ' .. gsub(err, '\n', '\n  >  '), '\n')
+    end
+
+    define_macro(self, decl, params.defname, ok)
+    return ok, err
+end
+
 --- check_header check whether the header file exists
 --- @param header string
 --- @return boolean ok true if the header file exists
@@ -142,13 +213,10 @@ end
 function Configh:check_header(header)
     assert(type(header) == 'string', 'header must be string')
 
-    local ok, err = self.exec:check_header(header)
-    if ok then
-        define_macro(self, 'header', header, true)
-        return true
-    end
-    define_macro(self, 'header', header, false)
-    return false, err
+    return check(self, 'header', {
+        defname = header,
+        header = header,
+    })
 end
 
 --- check_func check whether the function exists
@@ -158,13 +226,11 @@ end
 --- @return string? err error for compile the generated source file
 --- @return string? errerr error for failed to define macro
 function Configh:check_func(headers, func)
-    local ok, err = self.exec:check_func(headers, func)
-    if ok then
-        define_macro(self, 'function', func, true)
-        return true
-    end
-    define_macro(self, 'function', func, false)
-    return false, err
+    return check(self, 'function', {
+        defname = func,
+        headers = headers,
+        ['function'] = func,
+    })
 end
 
 --- check_type check whether the type exists
@@ -174,13 +240,11 @@ end
 --- @return string? err error for compile the generated source file
 --- @return string? errerr error for failed to define macro
 function Configh:check_type(headers, ctype)
-    local ok, err = self.exec:check_type(headers, ctype)
-    if ok then
-        define_macro(self, 'type', ctype, true)
-        return true
-    end
-    define_macro(self, 'type', ctype, false)
-    return false, err
+    return check(self, 'type', {
+        defname = ctype,
+        headers = headers,
+        type = ctype,
+    })
 end
 
 --- check_member check whether the member field exists
@@ -191,14 +255,12 @@ end
 --- @return string? err error for compile the generated source file
 --- @return string? errerr error for failed to define macro
 function Configh:check_member(headers, ctype, member)
-    local ok, err = self.exec:check_member(headers, ctype, member)
-    local name = format('%s.%s', ctype, member)
-    if ok then
-        define_macro(self, 'member', name, true)
-        return true
-    end
-    define_macro(self, 'member', name, false)
-    return false, err
+    return check(self, 'member', {
+        defname = format('%s.%s', ctype, member),
+        headers = headers,
+        type = ctype,
+        member = member,
+    })
 end
 
 Configh = require('metamodule').new(Configh)

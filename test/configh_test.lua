@@ -129,6 +129,30 @@ function testcase.check_member()
                     '^/\\* #undef HAVE_STRUCT_SOCKADDR_UNKNOWN_MEMBER \\*/', 'm')
 end
 
+function testcase.output_status()
+    local cfgh = configh('gcc')
+
+    -- test that enable output status
+    cfgh:output_status(true)
+    local stdout = io.stdout
+    local data = {}
+    -- luacheck: ignore 122
+    io.stdout = {
+        setvbuf = function()
+        end,
+        write = function(_, ...)
+            for _, v in ipairs({
+                ...,
+            }) do
+                data[#data + 1] = v
+            end
+        end,
+    }
+    cfgh:check_header('stdio.h')
+    io.stdout = stdout
+    assert.match(table.concat(data), 'check header: stdio.h ... found')
+end
+
 function testcase.flush()
     local cfgh = configh('gcc')
     assert(cfgh:check_header('stdio.h'))
@@ -159,6 +183,5 @@ function testcase.flush()
     -- test that throws an error if a pathname is nil
     err = assert.throws(cfgh.flush, cfgh)
     assert.match(err, 'pathname must be string')
-
 end
 
