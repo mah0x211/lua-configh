@@ -109,6 +109,26 @@ function testcase.check_type()
                     '^/\\* #undef HAVE_STRUCT_SOCKADDR_STORAGE \\*/', 'm')
 end
 
+function testcase.check_member()
+    local cfgh = configh('gcc')
+
+    -- test that check whether the member is available
+    local ok, err = cfgh:check_member('sys/socket.h', 'struct sockaddr',
+                                      'sa_family')
+    assert(ok, err)
+    -- confirm that the macro is defined in macro list
+    assert.re_match(table.concat(cfgh.macros, '\n'),
+                    '^#define HAVE_STRUCT_SOCKADDR_SA_FAMILY 1', 'm')
+
+    -- test that add commented macro if the member is not available
+    ok, err = cfgh:check_member('sys/socket.h', 'struct sockaddr',
+                                'unknown_member')
+    assert.is_false(ok)
+    assert.is_string(err)
+    assert.re_match(table.concat(cfgh.macros, '\n'),
+                    '^/\\* #undef HAVE_STRUCT_SOCKADDR_UNKNOWN_MEMBER \\*/', 'm')
+end
+
 function testcase.flush()
     local cfgh = configh('gcc')
     assert(cfgh:check_header('stdio.h'))

@@ -124,14 +124,14 @@ checks whether the specified header file exists or not.
 - `err:string`: error message if the generated source code fails to compile.
 
 
-## ok, err = configh:check_func( headers, funcname )
+## ok, err = configh:check_func( headers, func )
 
 checks whether the specified function exists or not.
 
 **Parameters**
 
 - `headers:string|string[]`: a header file name or array of header file names.
-- `funcname:string`: a function name.
+- `func:string`: a function name.
 
 **Returns**
 
@@ -139,7 +139,7 @@ checks whether the specified function exists or not.
 - `err:string`: error message if the generated source code fails to compile.
 
 
-## ok, err = configh:check_type( headers, typename )
+## ok, err = configh:check_type( headers, type )
 
 checks whether the specified type exists or not.
 
@@ -147,6 +147,22 @@ checks whether the specified type exists or not.
 
 - `headers:string|string[]`: a header file name or array of header file names.
 - `type:string`: a type name.
+
+**Returns**
+
+- `ok:boolean`: `true` on success, or `false` on failure.
+- `err:string`: error message if the generated source code fails to compile.
+
+
+## ok, err = configh:check_member( headers, type, member )
+
+checks whether the specified member field exists in the type or not.
+
+**Parameters**
+
+- `headers:string|string[]`: a header file name or array of header file names.
+- `type:string`: a type name.
+- `member:string`: a member name.
 
 **Returns**
 
