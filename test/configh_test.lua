@@ -153,6 +153,26 @@ function testcase.output_status()
     assert.match(table.concat(data), 'check header: stdio.h ... found')
 end
 
+function testcase.add_and_remove_cppflag()
+    local cfgh = configh('gcc')
+
+    -- test that add cppflag
+    cfgh:add_cppflag('-I/usr/local/include')
+    assert.is_uint(cfgh.exec.cppflags['-I/usr/local/include'])
+    assert.equal(cfgh.exec.cppflags[cfgh.exec.cppflags['-I/usr/local/include']],
+                 '-I/usr/local/include')
+
+    -- test that add multiple cppflags
+    cfgh:add_cppflag('-I/opt/include')
+    cfgh:add_cppflag('-DDEBUG')
+    assert.equal(#cfgh.exec.cppflags, 3)
+
+    -- test that remove cppflag
+    cfgh:remove_cppflag('-I/usr/local/include')
+    assert.is_nil(cfgh.exec.cppflags['-I/usr/local/include'])
+    assert.equal(#cfgh.exec.cppflags, 2)
+end
+
 function testcase.flush()
     local cfgh = configh('gcc')
     assert(cfgh:check_header('stdio.h'))

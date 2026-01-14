@@ -119,6 +119,18 @@ function Configh:unset_feature(name)
     self.exec:unset_feature(name)
 end
 
+--- add_cppflag add a cppflag
+--- @param flag string
+function Configh:add_cppflag(flag)
+    self.exec:add_cppflag(flag)
+end
+
+--- remove_cppflag remove a cppflag
+--- @param flag string
+function Configh:remove_cppflag(flag)
+    self.exec:remove_cppflag(flag)
+end
+
 local DECL_NAME_FORMAT = {
     header = '<%s>',
     ['function'] = "`%s'",

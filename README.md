@@ -25,6 +25,10 @@ local cfgh = configh('gcc')
 -- set feature macro
 cfgh:set_feature('_GNU_SOURCE')
 
+-- add cppflags
+-- CPPFLAGS environment variable is also loaded automatically
+cfgh:add_cppflag('-I/usr/local/include')
+
 -- check whether the specified header file exists or not.
 local ok, err = cfgh:check_header('stdio.h')
 if not ok then
@@ -108,6 +112,29 @@ remove a feature macro that set by `configh:set_feature` method.
 
 - `name:string`: a feature macro name.
 - `value:string?`: a feature macro value.
+
+
+## configh:add_cppflag( flag )
+
+add a cppflag to be used when compiling test code.
+
+**Parameters**
+
+- `flag:string`: a cppflag string (e.g. `-I/usr/local/include`, `-DDEBUG`).
+
+**NOTE**
+
+- The `CPPFLAGS` environment variable is automatically loaded when creating a `configh` object.
+- Tilde (`~`) is **not** expanded. Use `$HOME` or absolute path instead (e.g. `-I$HOME/include` or `-I/home/user/include`).
+
+
+## configh:remove_cppflag( flag )
+
+remove a cppflag that was added by `configh:add_cppflag` method.
+
+**Parameters**
+
+- `flag:string`: a cppflag string.
 
 
 ## configh:output_status( enabled )
