@@ -146,6 +146,15 @@ enables or disables the output of status messages to stdout when the `configh:ch
 - `enabled:boolean`: `true` to enable, or `false` to disable.
 
 
+## configh:set_stdout( [outfile] )
+
+sets the output file for status messages when the `configh:check_header`, `configh:check_func`, `configh:check_type`, `configh:check_decl`, `configh:check_member` methods are called.
+
+**Parameters**
+
+- `outfile:file*?`: an output file handle. If `nil` or omitted, `io.stdout` is used.
+
+
 ## ok, err = configh:check_header( header )
 
 checks whether the specified header file exists or not.
