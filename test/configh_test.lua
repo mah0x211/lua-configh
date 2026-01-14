@@ -151,26 +151,15 @@ end
 
 function testcase.output_status()
     local cfgh = configh('gcc')
+    local stdout = assert(io.tmpfile())
+    stdout:setvbuf('no')
+    cfgh:set_stdout(stdout)
 
     -- test that enable output status
     cfgh:output_status(true)
-    local stdout = io.stdout
-    local data = {}
-    -- luacheck: ignore 122
-    io.stdout = {
-        setvbuf = function()
-        end,
-        write = function(_, ...)
-            for _, v in ipairs({
-                ...,
-            }) do
-                data[#data + 1] = v
-            end
-        end,
-    }
     cfgh:check_header('stdio.h')
-    io.stdout = stdout
-    assert.match(table.concat(data), 'check header: stdio.h ... found')
+    stdout:seek('set')
+    assert.match(stdout:read('*a'), 'check header: stdio.h ... found')
 end
 
 function testcase.add_and_remove_cppflag()

@@ -27,12 +27,18 @@ local open = io.open
 local date = os.date
 local remove = os.remove
 local vformat = require('print').format
+local isfile = require('io.isfile')
 local executor = require('configh.executor')
+
+-- disable output buffering as default
+local STDOUT = io.stdout
+STDOUT:setvbuf('no')
 
 --- @class configh
 --- @field macros string[]
 --- @field exec configh.executor
 --- @field output boolean
+--- @field outfile file*
 local Configh = {}
 
 --- new create a new configh object
@@ -44,6 +50,7 @@ function Configh:init(cc)
     }
     self.exec = executor(cc)
     self.output = false
+    self.outfile = STDOUT
 
     return self
 end
@@ -53,7 +60,13 @@ end
 function Configh:output_status(enabled)
     assert(type(enabled) == 'boolean', 'enabled must be boolean')
     self.output = enabled
-    io.stdout:setvbuf('no')
+end
+
+--- set_stdout set the output file for status messages
+--- @param outfile file*?
+function Configh:set_stdout(outfile)
+    assert(outfile == nil or isfile(outfile), 'outfile must be file or nil')
+    self.outfile = outfile or STDOUT
 end
 
 --- printf output the message to stdout
@@ -62,7 +75,7 @@ end
 --- @param ... any
 local function printf(self, fmt, ...)
     if self.output then
-        io.stdout:write(vformat(fmt, ...))
+        self.outfile:write(vformat(fmt, ...))
     end
 end
 
