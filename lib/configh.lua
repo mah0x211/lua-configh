@@ -196,10 +196,12 @@ local function check(self, decl, params)
     assert(type(params.defname) == 'string', 'params.defname must be string')
     assert(type(params[decl]) == 'string' or type(params[decl]) == 'table',
            'params.' .. decl .. ' must be string or table')
+    assert(params.display == nil or type(params.display) == 'string',
+           'params.display must be string or nil')
 
     local method = DECL_METHOD[decl]
 
-    printf(self, 'check %s: %s ... ', decl, params[decl])
+    printf(self, 'check %s: %s ... ', decl, params.display or params[decl])
     local ok, err
     if decl == 'header' then
         ok, err = self.exec[method](self.exec, params.header)
@@ -285,8 +287,10 @@ end
 --- @return string? err error for compile the generated source file
 --- @return string? errerr error for failed to define macro
 function Configh:check_member(headers, ctype, member)
+    local defname = format('%s.%s', ctype, member)
     return check(self, 'member', {
-        defname = format('%s.%s', ctype, member),
+        defname = defname,
+        display = defname,
         headers = headers,
         type = ctype,
         member = member,
