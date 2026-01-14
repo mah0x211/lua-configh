@@ -1,39 +1,17 @@
 name: test
 
-on: [push]
+on:
+  push:
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+
 
 jobs:
   luacheck:
     runs-on: ubuntu-latest
-    steps:
-    -
-      name: Checkout
-      uses: actions/checkout@v2
-    -
-      name: Setup Lua
-      uses: leafo/gh-actions-lua@v10
-    -
-      name: Setup Luarocks
-      uses: leafo/gh-actions-luarocks@v4
-    -
-      name: Install Tools
-      run: luarocks install luacheck
-    -
-      name: Run luacheck
-      run: |
-        luacheck .
-
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        lua-version:
-          - "5.1"
-          - "5.2"
-          - "5.3"
-          - "5.4"
-          - "luajit-2.0.5"
-          - "luajit-openresty"
+    container:
+      image: ghcr.io/mah0x211/lua-ci:latest
     steps:
     -
       name: Checkout
@@ -41,13 +19,36 @@ jobs:
       with:
         submodules: 'true'
     -
-      name: Setup Lua ${{ matrix.lua-version }}
-      uses: leafo/gh-actions-lua@v10
-      with:
-        luaVersion: ${{ matrix.lua-version }}
+      name: Install Tools
+      run: luarocks install luacheck
     -
-      name: Setup Luarocks
-      uses: leafo/gh-actions-luarocks@v4
+      name: Run luacheck
+      run: |
+        luacheck --no-self .
+
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/mah0x211/lua-ci:latest
+    strategy:
+      matrix:
+        lua-version:
+          - "5.1.:latest"
+          - "5.2.:latest"
+          - "5.3.:latest"
+          - "5.4.:latest"
+          - "lj-v2.1:latest"
+    steps:
+    -
+      name: Switch Lua Version
+      run: |
+        lenv -g use ${{ matrix.lua-version }}
+        lua -v || true
+    -
+      name: Checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: 'true'
     -
       name: Install
       run: |
@@ -64,6 +65,8 @@ jobs:
         testcase ./test/
     -
       name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v2
+      uses: codecov/codecov-action@v4
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
         flags: unittests
+        files: ./luacov.report.out
