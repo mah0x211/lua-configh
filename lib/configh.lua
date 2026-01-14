@@ -135,6 +135,7 @@ local DECL_NAME_FORMAT = {
     header = '<%s>',
     ['function'] = "`%s'",
     type = "`%s'",
+    decl = "`%s'",
     member = "`%s'",
 }
 
@@ -144,6 +145,7 @@ local DECL_NAME_FORMAT = {
 --- | 'header'
 --- | 'function'
 --- | 'type'
+--- | 'decl'
 --- | 'member'
 --- @param name string
 --- @param is_exists boolean
@@ -171,6 +173,7 @@ local DECL_METHOD = {
     header = 'check_header',
     ['function'] = 'check_func',
     type = 'check_type',
+    decl = 'check_decl',
     member = 'check_member',
 }
 
@@ -180,6 +183,7 @@ local DECL_METHOD = {
 --- | 'header'
 --- | 'function'
 --- | 'type'
+--- | 'decl'
 --- | 'member'
 --- @param params table<string, string>|table<'headers', string[]>
 --- @return boolean ok
@@ -256,6 +260,20 @@ function Configh:check_type(headers, ctype)
         defname = ctype,
         headers = headers,
         type = ctype,
+    })
+end
+
+--- check_decl check whether named symbol is defined as a macro or can be used as an r-value
+--- @param headers string|string[]
+--- @param name string
+--- @return boolean ok true if the type exists
+--- @return string? err error for compile the generated source file
+--- @return string? errerr error for failed to define macro
+function Configh:check_decl(headers, name)
+    return check(self, 'decl', {
+        defname = name,
+        headers = headers,
+        decl = name,
     })
 end
 

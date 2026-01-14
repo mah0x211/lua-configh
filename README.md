@@ -139,7 +139,7 @@ remove a cppflag that was added by `configh:add_cppflag` method.
 
 ## configh:output_status( enabled )
 
-enables or disables the output of status messages to stdout when the `configh:check_header`, `configh:check_func`, `configh:check_type`, `configh:check_member` methods are called.
+enables or disables the output of status messages to stdout when the `configh:check_header`, `configh:check_func`, `configh:check_type`, `configh:check_decl`, `configh:check_member` methods are called.
 
 **Parameters**
 
@@ -183,6 +183,21 @@ checks whether the specified type exists or not.
 
 - `headers:string|string[]`: a header file name or array of header file names.
 - `type:string`: a type name.
+
+**Returns**
+
+- `ok:boolean`: `true` on success, or `false` on failure.
+- `err:string`: error message if the generated source code fails to compile.
+
+
+## ok, err = configh:check_decl( headers, name )
+
+checks whether the specified declaration (macro constant, enum value, or global variable) exists or not.
+
+**Parameters**
+
+- `headers:string|string[]`: a header file name or array of header file names.
+- `name:string`: a declaration name.
 
 **Returns**
 

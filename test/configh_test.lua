@@ -1,5 +1,6 @@
 require('luacov')
 local testcase = require('testcase')
+local assert = require('assert')
 local setenv = require('setenv')
 local configh = require('configh')
 
@@ -127,6 +128,25 @@ function testcase.check_member()
     assert.is_string(err)
     assert.re_match(table.concat(cfgh.macros, '\n'),
                     '^/\\* #undef HAVE_STRUCT_SOCKADDR_UNKNOWN_MEMBER \\*/', 'm')
+end
+
+function testcase.check_decl()
+    local cfgh = configh('gcc')
+
+    -- test that check whether the macro constant is defined
+    local ok, err = cfgh:check_decl('limits.h', 'PATH_MAX')
+    assert(ok, err)
+    -- confirm that the macro is defined in macro list
+    assert.re_match(table.concat(cfgh.macros, '\n'), '^#define HAVE_PATH_MAX 1',
+                    'm')
+
+    -- test that add commented macro if the declaration is not available
+    ok, err = cfgh:check_decl('limits.h', 'UNKNOWN_CONSTANT')
+    assert.is_false(ok)
+    assert.is_string(err)
+
+    assert.re_match(table.concat(cfgh.macros, '\n'),
+                    '^/\\* #undef HAVE_UNKNOWN_CONSTANT \\*/', 'm')
 end
 
 function testcase.output_status()
