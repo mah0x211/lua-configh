@@ -259,6 +259,21 @@ function Executor:check_type(headers, ctype)
     return compile(self, self:makecsrc(headers, format('%s x', ctype)))
 end
 
+--- check_decl check whether named symbol is defined as a macro or can be used as an r-value
+--- @param headers string|string[]
+--- @param name string
+--- @return boolean ok
+--- @return string? err
+function Executor:check_decl(headers, name)
+    assert(type(name) == 'string', 'name must be a string')
+    return compile(self, self:makecsrc(headers, format([[
+#ifndef %s
+    (void)%s;
+#endif
+
+]], name, name)))
+end
+
 --- check_member check the member field is available
 --- @param headers string|string[]
 --- @param ctype string

@@ -1,5 +1,6 @@
 require('luacov')
 local testcase = require('testcase')
+local assert = require('assert')
 local setenv = require('setenv')
 local executor = require('configh.executor')
 
@@ -199,6 +200,34 @@ function testcase.add_and_remove_cppflag()
     assert.match(err, 'flag must be string')
     err = assert.throws(exec.remove_cppflag, exec, 123)
     assert.match(err, 'flag must be string')
+end
+
+function testcase.check_decl()
+    local exec = executor('gcc')
+
+    -- test that check whether the macro constant is defined
+    local ok, err = exec:check_decl('limits.h', 'PATH_MAX')
+    assert.is_true(ok)
+    assert.is_nil(err)
+
+    -- test that check whether the enum value is defined
+    ok, err = exec:check_decl('fcntl.h', 'O_RDONLY')
+    assert.is_true(ok)
+    assert.is_nil(err)
+
+    -- test that check whether the global variable is defined
+    ok, err = exec:check_decl('errno.h', 'errno')
+    assert.is_true(ok)
+    assert.is_nil(err)
+
+    -- test that return false if the declaration is not available
+    ok, err = exec:check_decl('limits.h', 'UNKNOWN_CONSTANT')
+    assert.is_false(ok)
+    assert.is_string(err)
+
+    -- test that throws an error if name argument is not string
+    err = assert.throws(exec.check_decl, exec, 'stdio.h', 123)
+    assert.match(err, 'name must be a string')
 end
 
 function testcase.cppflags_env()
