@@ -36,6 +36,7 @@ local gcfn = require('gcfn')
 --- @class configh.executor
 --- @field cc string
 --- @field features table<string, integer>|table<integer, string>
+--- @field cppflags table<string, integer>|table<integer, string>
 --- @field buffile string
 --- @field buf file*
 local Executor = {}
@@ -58,12 +59,24 @@ function Executor:init(cc)
 
     self.cc = cc or os.getenv('CC') or 'gcc'
     self.features = {}
+    self.cppflags = {}
     self.buffile = assert(tmpname())
     self.buf = assert(open(self.buffile, 'r'))
     -- create new gcfn object
     self.gco = gcfn(function(pathname)
         remove(pathname)
     end, self.buffile)
+
+    -- load CPPFLAGS environment variable
+    local cppflags_str = getenv('CPPFLAGS')
+    if cppflags_str then
+        for flag in cppflags_str:gmatch('%S+') do
+            if not self.cppflags[flag] then
+                self.cppflags[#self.cppflags + 1] = flag
+                self.cppflags[flag] = #self.cppflags
+            end
+        end
+    end
 
     return self
 end
@@ -77,21 +90,23 @@ local function compile(exec, srcfile)
     local objfile = 'a.out'
     local cmd = concat({
         exec.cc,
+        concat(exec.cppflags, ' '),
         '-o',
         objfile,
         srcfile,
         '2>',
         exec.buffile,
     }, ' ')
-
-    local ok = execute(cmd)
-    remove(srcfile)
-
+    local res = execute(cmd)
+    local ok = res == true
     if LUA_VERSION < 5.2 then
-        ok = ok == 0
+        ok = (res == 0)
     end
 
+    -- cleanup
+    remove(srcfile)
     if ok then
+        -- successfully compiled
         remove(objfile)
         return true
     end
@@ -189,6 +204,29 @@ function Executor:unset_feature(name)
     if idx then
         self.features[name] = nil
         table.remove(self.features, idx)
+    end
+end
+
+--- add_cppflag add a cppflag
+--- @param flag string
+function Executor:add_cppflag(flag)
+    assert(type(flag) == 'string', 'flag must be string')
+
+    if not self.cppflags[flag] then
+        self.cppflags[#self.cppflags + 1] = flag
+        self.cppflags[flag] = #self.cppflags
+    end
+end
+
+--- remove_cppflag remove a cppflag
+--- @param flag string
+function Executor:remove_cppflag(flag)
+    assert(type(flag) == 'string', 'flag must be string')
+
+    local idx = self.cppflags[flag]
+    if idx then
+        self.cppflags[flag] = nil
+        table.remove(self.cppflags, idx)
     end
 end
 

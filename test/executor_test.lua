@@ -167,3 +167,53 @@ function testcase.check_member()
     assert.match(err, 'member must be a string')
 end
 
+function testcase.add_and_remove_cppflag()
+    local exec = executor('gcc')
+
+    -- test that add cppflag
+    exec:add_cppflag('-I/usr/local/include')
+    assert.is_uint(exec.cppflags['-I/usr/local/include'])
+    assert.equal(exec.cppflags[exec.cppflags['-I/usr/local/include']],
+                 '-I/usr/local/include')
+
+    -- test that add multiple cppflags
+    exec:add_cppflag('-I/opt/include')
+    exec:add_cppflag('-DDEBUG')
+    assert.equal(#exec.cppflags, 3)
+
+    -- test that do not add duplicate cppflag
+    exec:add_cppflag('-I/usr/local/include')
+    assert.equal(#exec.cppflags, 3)
+
+    -- test that remove cppflag
+    exec:remove_cppflag('-I/usr/local/include')
+    assert.is_nil(exec.cppflags['-I/usr/local/include'])
+    assert.equal(#exec.cppflags, 2)
+
+    -- test that remove non-existent cppflag does not throw error
+    exec:remove_cppflag('-I/nonexistent')
+    assert.equal(#exec.cppflags, 2)
+
+    -- test that throws an error if flag argument is not string
+    local err = assert.throws(exec.add_cppflag, exec, 123)
+    assert.match(err, 'flag must be string')
+    err = assert.throws(exec.remove_cppflag, exec, 123)
+    assert.match(err, 'flag must be string')
+end
+
+function testcase.cppflags_env()
+    -- test that load CPPFLAGS environment variable
+    setenv('CPPFLAGS', '-I/usr/local/include -DDEBUG')
+    local exec = executor('gcc')
+    assert.is_uint(exec.cppflags['-I/usr/local/include'])
+    assert.is_uint(exec.cppflags['-DDEBUG'])
+    assert.equal(#exec.cppflags, 2)
+    setenv('CPPFLAGS', nil)
+
+    -- test that CPPFLAGS environment variable is empty
+    setenv('CPPFLAGS', '')
+    exec = executor('gcc')
+    assert.equal(#exec.cppflags, 0)
+    setenv('CPPFLAGS', nil)
+end
+
