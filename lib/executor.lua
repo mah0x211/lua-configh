@@ -176,11 +176,17 @@ end
 
 --- set_feature define the feature macro in testing
 --- @param name string
---- @param value? string
+--- @param value? string|number
 function Executor:set_feature(name, value)
+    local tv = type(value)
     assert(type(name) == 'string', 'name must be string')
-    assert(type(value) == 'string' or value == nil,
-           'value must be string or nil')
+    assert(value == nil or tv == 'string' or tv == 'number',
+           'value must be a string, number or nil')
+
+    -- convert number to string
+    if tv == 'number' then
+        value = tostring(value)
+    end
 
     local feature = concat({
         '#define',
