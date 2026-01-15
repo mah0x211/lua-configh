@@ -184,6 +184,7 @@ end
 
 function testcase.flush()
     local cfgh = configh('gcc')
+    cfgh:set_feature('_GNU_SOURCE')
     assert(cfgh:check_header('stdio.h'))
     assert(cfgh:check_func('stdio.h', 'printf'))
 
@@ -197,6 +198,7 @@ function testcase.flush()
     local content = f:read('*a')
     f:close()
     for _, pattern in ipairs({
+        '\n#define _GNU_SOURCE\n',
         '\n#define HAVE_STDIO_H 1\n',
         '\n#define HAVE_PRINTF 1\n',
     }) do
