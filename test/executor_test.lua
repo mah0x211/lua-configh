@@ -61,25 +61,27 @@ function testcase.set_and_unset_featrue()
     assert.is_uint(exec.features._GNU_SOURCE)
     assert.equal(exec.features[exec.features._GNU_SOURCE], '#define _GNU_SOURCE')
 
-    -- test that replace new feature macro
-    exec:set_feature('_GNU_SOURCE', '123')
+    -- test that replace new feature macro with number value
+    exec:set_feature('_GNU_SOURCE', 123)
     assert.is_uint(exec.features._GNU_SOURCE)
     assert.equal(exec.features[exec.features._GNU_SOURCE],
                  '#define _GNU_SOURCE 123')
+
+    -- test that replace new feature macro with string value
+    exec:set_feature('_GNU_SOURCE', '"foo"')
+    assert.is_uint(exec.features._GNU_SOURCE)
+    assert.equal(exec.features[exec.features._GNU_SOURCE],
+                 '#define _GNU_SOURCE "foo"')
 
     -- test that remove feature macro
     exec:unset_feature('_GNU_SOURCE')
     assert.is_nil(exec.features._GNU_SOURCE)
 
-    -- test that throws an error if name argument is not string
-    local err = assert.throws(exec.set_feature, exec, 123)
+    -- test that throws an error if name argument is nether nil, string nor number
+    local err = assert.throws(exec.set_feature, exec, {})
     assert.match(err, 'name must be string')
-    err = assert.throws(exec.unset_feature, exec, 123)
+    err = assert.throws(exec.unset_feature, exec, {})
     assert.match(err, 'name must be string')
-
-    -- test that throws an error if value argument is not string
-    err = assert.throws(exec.set_feature, exec, '_GNU_SOURCE', 123)
-    assert.match(err, 'value must be string or nil')
 end
 
 function testcase.check_header()

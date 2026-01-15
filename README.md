@@ -101,7 +101,7 @@ defines a feature macro in generated source code.
 **Parameters**
 
 - `name:string`: a feature macro name.
-- `value:string?`: a feature macro value.
+- `value:string|number?`: a feature macro value.
 
 
 ## configh:unset_feature( name )
@@ -111,7 +111,6 @@ remove a feature macro that set by `configh:set_feature` method.
 **Parameters**
 
 - `name:string`: a feature macro name.
-- `value:string?`: a feature macro value.
 
 
 ## configh:add_cppflag( flag )
