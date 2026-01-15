@@ -19,8 +19,14 @@ dependencies = {
 }
 build = {
     type = "builtin",
+    install = {
+        bin = {
+            ["configh"] = "bin/configh.lua",
+        },
+    },
     modules = {
         ["configh"] = "lib/configh.lua",
+        ["configh.command"] = "lib/command.lua",
         ["configh.executor"] = "lib/executor.lua",
     },
 }

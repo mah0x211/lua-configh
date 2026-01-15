@@ -3,5 +3,6 @@ runreport = true
 deletestats = true
 modules = {
     ["configh"] = "lib/configh.lua",
+    ["configh.command"] = "lib/command.lua",
     ["configh.executor"] = "lib/executor.lua",
 }
