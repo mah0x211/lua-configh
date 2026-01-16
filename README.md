@@ -450,3 +450,7 @@ Flushes the definition macros to the specified pathname.
 - `ok:boolean`: `true` on success, or `false` on failure.
 - `err:string`: error message if the file failed to be written.
 
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for details.
