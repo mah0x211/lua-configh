@@ -81,41 +81,98 @@ function Executor:init(cc)
     return self
 end
 
---- compile compile a c source file
+--- read_error reads and clears the error buffer
 --- @param exec configh.executor
---- @param srcfile string
---- @return boolean ok
---- @return string? err
-local function compile(exec, srcfile)
-    local objfile = 'a.out'
-    local cmd = concat({
-        exec.cc,
-        concat(exec.cppflags, ' '),
-        '-o',
-        objfile,
-        srcfile,
-        '2>',
-        exec.buffile,
-    }, ' ')
-    local res = execute(cmd)
-    local ok = res == true
-    if LUA_VERSION < 5.2 then
-        ok = (res == 0)
-    end
-
-    -- cleanup
-    remove(srcfile)
-    if ok then
-        -- successfully compiled
-        remove(objfile)
-        return true
-    end
-
+--- @return string err
+local function read_error(exec)
     local err = exec.buf:read('*a')
     assert(truncate(exec.buffile, 0))
     exec.buf:seek('set')
+    return err
+end
 
-    return false, err
+--- run_cmd executes a shell command and returns ok status
+--- @param cmd string
+--- @return boolean ok
+local function run_cmd(cmd)
+    local res = execute(cmd)
+    if LUA_VERSION < 5.2 then
+        return (res == 0)
+    end
+    return res == true
+end
+
+--- preprocess runs the C preprocessor to check if headers can be included
+--- @param opts table  { headers: string|string[]|nil, code: string|nil }
+--- @return boolean ok
+--- @return string? err
+function Executor:preprocess(opts)
+    opts = opts or {}
+    local srcfile = self:makecsrc(opts.headers, opts.code)
+    local cmd = concat({
+        self.cc,
+        concat(self.cppflags, ' '),
+        '-E',
+        srcfile,
+        '-o /dev/null',
+        '2>',
+        self.buffile,
+    }, ' ')
+    local ok = run_cmd(cmd)
+    remove(srcfile)
+    if ok then
+        return true
+    end
+    return false, read_error(self)
+end
+
+--- compile runs the compiler in syntax-only mode to check declarations
+--- @param opts table  { headers: string|string[]|nil, code: string|nil }
+--- @return boolean ok
+--- @return string? err
+function Executor:compile(opts)
+    opts = opts or {}
+    local srcfile = self:makecsrc(opts.headers, opts.code)
+    local cmd = concat({
+        self.cc,
+        concat(self.cppflags, ' '),
+        '-fsyntax-only',
+        srcfile,
+        '2>',
+        self.buffile,
+    }, ' ')
+    local ok = run_cmd(cmd)
+    remove(srcfile)
+    if ok then
+        return true
+    end
+    return false, read_error(self)
+end
+
+--- link compiles and links to verify a symbol exists in the current libraries
+--- @param opts table  { headers: string|string[]|nil, code: string|nil }
+--- @return boolean ok
+--- @return string? err
+function Executor:link(opts)
+    opts = opts or {}
+    local srcfile = self:makecsrc(opts.headers, opts.code)
+    local outfile = tmpname()
+    local cmd = concat({
+        self.cc,
+        concat(self.cppflags, ' '),
+        '-o',
+        outfile,
+        srcfile,
+        '2>',
+        self.buffile,
+    }, ' ')
+    local ok = run_cmd(cmd)
+    remove(srcfile)
+    if ok then
+        remove(outfile)
+        return true
+    end
+    return false, read_error(self)
 end
 
 --- makecsrc create a new c source file
@@ -243,47 +300,53 @@ end
 --- @return boolean ok
 --- @return string? err
 function Executor:check_header(headers)
-    return compile(self, self:makecsrc(headers))
+    return self:preprocess({
+        headers = headers,
+    })
 end
 
 --- check_func check the function is available
---- @param headers string|string[]
+--- @param headers string|string[]|nil
 --- @param func string
 --- @return boolean ok
 --- @return string? err
 function Executor:check_func(headers, func)
     assert(type(func) == 'string', 'func must be a string')
-    local code = 'void (*function_pointer)(void) = (void (*)(void))%s'
-    return compile(self, self:makecsrc(headers, format(code, func)))
+    return self:link({
+        headers = headers,
+        code = format('void (*function_pointer)(void) = (void (*)(void))%s',
+                      func),
+    })
 end
 
 --- check_type check the type is available
---- @param headers string|string[]
+--- @param headers string|string[]|nil
 --- @param ctype string
 --- @return boolean ok
 --- @return string? err
 function Executor:check_type(headers, ctype)
     assert(type(ctype) == 'string', 'type must be a string')
-    return compile(self, self:makecsrc(headers, format('%s x', ctype)))
+    return self:compile({
+        headers = headers,
+        code = format('%s x', ctype),
+    })
 end
 
 --- check_decl check whether named symbol is defined as a macro or can be used as an r-value
---- @param headers string|string[]
+--- @param headers string|string[]|nil
 --- @param name string
 --- @return boolean ok
 --- @return string? err
 function Executor:check_decl(headers, name)
     assert(type(name) == 'string', 'name must be a string')
-    return compile(self, self:makecsrc(headers, format([[
-#ifndef %s
-    (void)%s;
-#endif
-
-]], name, name)))
+    return self:compile({
+        headers = headers,
+        code = format('#ifndef %s\n    (void)%s;\n#endif\n\n', name, name),
+    })
 end
 
 --- check_member check the member field is available
---- @param headers string|string[]
+--- @param headers string|string[]|nil
 --- @param ctype string
 --- @param member string
 --- @return boolean ok
@@ -291,8 +354,10 @@ end
 function Executor:check_member(headers, ctype, member)
     assert(type(ctype) == 'string', 'type must be a string')
     assert(type(member) == 'string', 'member must be a string')
-    return compile(self, self:makecsrc(headers, format('%s x; (void)x.%s',
-                                                       ctype, member)))
+    return self:compile({
+        headers = headers,
+        code = format('%s x; (void)x.%s', ctype, member),
+    })
 end
 
 Executor = require('metamodule').new(Executor)

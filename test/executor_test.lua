@@ -118,6 +118,62 @@ function testcase.unset_feature_reenable()
     assert.equal(exec.features[idx_b], '#define B 1')
 end
 
+function testcase.preprocess()
+    local exec = executor('gcc')
+
+    -- test that preprocess succeeds for an existing header
+    local ok, err = exec:preprocess({
+        headers = 'stdio.h',
+    })
+    assert.is_true(ok)
+    assert.is_nil(err)
+
+    -- test that preprocess fails for a nonexistent header
+    ok, err = exec:preprocess({
+        headers = 'this_is_unknown_header_for_test.h',
+    })
+    assert.is_false(ok)
+    assert.is_string(err)
+end
+
+function testcase.compile()
+    local exec = executor('gcc')
+
+    -- test that compile succeeds for an existing type (with header)
+    local ok, err = exec:compile({
+        headers = 'sys/socket.h',
+        code = 'struct sockaddr_storage x',
+    })
+    assert.is_true(ok)
+    assert.is_nil(err)
+
+    -- test that compile fails for an unknown type
+    ok, err = exec:compile({
+        code = 'unknown_type_xyz_for_test x',
+    })
+    assert.is_false(ok)
+    assert.is_string(err)
+end
+
+function testcase.link()
+    local exec = executor('gcc')
+
+    -- test that link succeeds for an existing function (with header)
+    local ok, err = exec:link({
+        headers = 'stdio.h',
+        code = 'void (*fp)(void) = (void (*)(void))printf',
+    })
+    assert.is_true(ok)
+    assert.is_nil(err)
+
+    -- test that link fails for a nonexistent function
+    ok, err = exec:link({
+        code = 'void (*fp)(void) = (void (*)(void))nonexistent_func_xyz_for_test',
+    })
+    assert.is_false(ok)
+    assert.is_string(err)
+end
+
 function testcase.check_header()
     local exec = executor('gcc')
 
