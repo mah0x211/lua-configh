@@ -173,10 +173,12 @@ function testcase.add_and_remove_cppflag()
     cfgh:add_cppflag('-DDEBUG')
     assert.equal(#cfgh.exec.cppflags, 3)
 
-    -- test that remove cppflag
+    -- test that remove_cppflag blanks the slot; slot count unchanged
+    local idx = cfgh.exec.cppflags['-I/usr/local/include']
     cfgh:remove_cppflag('-I/usr/local/include')
-    assert.is_nil(cfgh.exec.cppflags['-I/usr/local/include'])
-    assert.equal(#cfgh.exec.cppflags, 2)
+    assert.is_uint(cfgh.exec.cppflags['-I/usr/local/include'])
+    assert.equal(cfgh.exec.cppflags[idx], '')
+    assert.equal(#cfgh.exec.cppflags, 3)
 end
 
 function testcase.flush()

@@ -188,17 +188,18 @@ function Executor:set_feature(name, value)
         value = tostring(value)
     end
 
-    local feature = concat({
+    local macro = concat({
         '#define',
         name,
         value,
     }, ' ')
     local idx = self.features[name]
-    if not idx then
-        idx = #self.features + 1
+    if idx then
+        self.features[idx] = macro
+    else
+        self.features[#self.features + 1] = macro
+        self.features[name] = #self.features
     end
-    self.features[idx] = feature
-    self.features[name] = idx
 end
 
 --- unset_feature undefine the feature macro in testing
@@ -208,8 +209,7 @@ function Executor:unset_feature(name)
 
     local idx = self.features[name]
     if idx then
-        self.features[name] = nil
-        table.remove(self.features, idx)
+        self.features[idx] = ''
     end
 end
 
@@ -218,7 +218,10 @@ end
 function Executor:add_cppflag(flag)
     assert(type(flag) == 'string', 'flag must be string')
 
-    if not self.cppflags[flag] then
+    local idx = self.cppflags[flag]
+    if idx then
+        self.cppflags[idx] = flag
+    else
         self.cppflags[#self.cppflags + 1] = flag
         self.cppflags[flag] = #self.cppflags
     end
@@ -231,8 +234,7 @@ function Executor:remove_cppflag(flag)
 
     local idx = self.cppflags[flag]
     if idx then
-        self.cppflags[flag] = nil
-        table.remove(self.cppflags, idx)
+        self.cppflags[idx] = ''
     end
 end
 
