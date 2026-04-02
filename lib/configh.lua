@@ -168,16 +168,16 @@ function Configh:unset_feature(name)
     self.exec:unset_feature(name)
 end
 
---- add_cppflag add a cppflag
---- @param flag string
-function Configh:add_cppflag(flag)
-    self.exec:add_cppflag(flag)
+--- set_cppflags set cppflags, replacing any previously set flags
+--- @param flags string|string[]
+function Configh:set_cppflags(flags)
+    self.exec:set_cppflags(flags)
 end
 
---- remove_cppflag remove a cppflag
---- @param flag string
-function Configh:remove_cppflag(flag)
-    self.exec:remove_cppflag(flag)
+--- add_cppflags append cppflags to the existing list
+--- @param flags string|string[]
+function Configh:add_cppflags(flags)
+    self.exec:add_cppflags(flags)
 end
 
 -- Maps target name to the corresponding executor method name.
