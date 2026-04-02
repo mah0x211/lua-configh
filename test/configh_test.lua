@@ -339,6 +339,39 @@ function testcase.add_libs()
     assert.equal(cfgh.exec.libs[2], 'm')
 end
 
+function testcase.set_ldflags()
+    local cfgh = configh('gcc')
+
+    cfgh:set_ldflags('-Wl,-rpath,/usr/local/lib')
+    assert.equal(#cfgh.exec.ldflags, 1)
+    assert.equal(cfgh.exec.ldflags[1], '-Wl,-rpath,/usr/local/lib')
+
+    cfgh:set_ldflags({
+        '-Wl,--as-needed',
+        '-static',
+    })
+    assert.equal(#cfgh.exec.ldflags, 2)
+
+    cfgh:set_ldflags({
+        '-Wl,-z,relro',
+    })
+    assert.equal(#cfgh.exec.ldflags, 1)
+    assert.equal(cfgh.exec.ldflags[1], '-Wl,-z,relro')
+end
+
+function testcase.add_ldflags()
+    local cfgh = configh('gcc')
+
+    cfgh:add_ldflags('-Wl,-rpath,/usr/local/lib')
+    assert.equal(#cfgh.exec.ldflags, 1)
+    cfgh:add_ldflags({
+        '-static',
+    })
+    assert.equal(#cfgh.exec.ldflags, 2)
+    assert.equal(cfgh.exec.ldflags[1], '-Wl,-rpath,/usr/local/lib')
+    assert.equal(cfgh.exec.ldflags[2], '-static')
+end
+
 function testcase.flush()
     local cfgh = configh('gcc')
     cfgh:set_feature('_GNU_SOURCE')

@@ -847,3 +847,124 @@ function testcase.add_libs()
     })
     assert.match(err, 'flags#2 must be a string')
 end
+
+function testcase.set_ldflags()
+    local exec = executor('gcc')
+
+    -- test that set ldflags with a string
+    exec:set_ldflags('-Wl,-rpath,/usr/local/lib')
+    assert.equal(#exec.ldflags, 1)
+    assert.equal(exec.ldflags[1], '-Wl,-rpath,/usr/local/lib')
+
+    -- test that set ldflags with a string array
+    exec:set_ldflags({
+        '-Wl,--as-needed',
+        '-static',
+    })
+    assert.equal(#exec.ldflags, 2)
+    assert.equal(exec.ldflags[1], '-Wl,--as-needed')
+    assert.equal(exec.ldflags[2], '-static')
+
+    -- test that set_ldflags replaces the existing list
+    exec:set_ldflags({
+        '-Wl,-z,relro',
+    })
+    assert.equal(#exec.ldflags, 1)
+    assert.equal(exec.ldflags[1], '-Wl,-z,relro')
+
+    -- test that set_ldflags with empty array clears the list
+    exec:set_ldflags({})
+    assert.equal(#exec.ldflags, 0)
+
+    -- test that empty string and whitespace-only strings are ignored
+    exec:set_ldflags('')
+    assert.equal(#exec.ldflags, 0)
+    exec:set_ldflags({
+        '-Wl,-a',
+        '',
+        '   ',
+        '-Wl,-b',
+    })
+    assert.equal(#exec.ldflags, 2)
+    assert.equal(exec.ldflags[1], '-Wl,-a')
+    assert.equal(exec.ldflags[2], '-Wl,-b')
+
+    -- test that leading/trailing whitespace is trimmed
+    exec:set_ldflags('  -static  ')
+    assert.equal(#exec.ldflags, 1)
+    assert.equal(exec.ldflags[1], '-static')
+
+    -- test that throws an error if flags is not string or table
+    local err = assert.throws(exec.set_ldflags, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of flags is not string
+    err = assert.throws(exec.set_ldflags, exec, {
+        '-Wl,-rpath,/a',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.add_ldflags()
+    local exec = executor('gcc')
+
+    -- test that add ldflags with a string
+    exec:add_ldflags('-Wl,-rpath,/usr/local/lib')
+    assert.equal(#exec.ldflags, 1)
+    assert.equal(exec.ldflags[1], '-Wl,-rpath,/usr/local/lib')
+
+    -- test that add ldflags with a string array appends to existing list
+    exec:add_ldflags({
+        '-static',
+    })
+    assert.equal(#exec.ldflags, 2)
+    assert.equal(exec.ldflags[1], '-Wl,-rpath,/usr/local/lib')
+    assert.equal(exec.ldflags[2], '-static')
+
+    -- test that set_ldflags replaces all flags including those added via add_ldflags
+    exec:set_ldflags({
+        '-Wl,-z,relro',
+    })
+    assert.equal(#exec.ldflags, 1)
+    assert.equal(exec.ldflags[1], '-Wl,-z,relro')
+
+    -- test that throws an error if flags is not string or table
+    local err = assert.throws(exec.add_ldflags, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of flags is not string
+    err = assert.throws(exec.add_ldflags, exec, {
+        '-Wl,-rpath,/a',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.ldflags_env()
+    -- test that LDFLAGS environment variable is read into ldflags on init
+    setenv('LDFLAGS', '-Wl,-rpath,/usr/local/lib -static')
+    local exec = executor('gcc')
+    assert.equal(#exec.ldflags, 2)
+    assert.equal(exec.ldflags[1], '-Wl,-rpath,/usr/local/lib')
+    assert.equal(exec.ldflags[2], '-static')
+
+    -- test that add_ldflags appends to env-loaded flags
+    exec:add_ldflags('-Wl,--as-needed')
+    assert.equal(#exec.ldflags, 3)
+    assert.equal(exec.ldflags[3], '-Wl,--as-needed')
+
+    -- test that set_ldflags replaces env-loaded flags
+    exec:set_ldflags({
+        '-Wl,-z,relro',
+    })
+    assert.equal(#exec.ldflags, 1)
+    assert.equal(exec.ldflags[1], '-Wl,-z,relro')
+    setenv('LDFLAGS', nil)
+
+    -- test that LDFLAGS environment variable is empty
+    setenv('LDFLAGS', '')
+    exec = executor('gcc')
+    assert.equal(#exec.ldflags, 0)
+    setenv('LDFLAGS', nil)
+end

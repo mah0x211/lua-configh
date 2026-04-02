@@ -41,11 +41,25 @@ local gcfn = require('gcfn')
 --- @field cflags string[]
 --- @field libdirs string[]
 --- @field libs string[]
+--- @field ldflags string[]
 --- @field buffile string
 --- @field buf file*
 local Executor = {}
 
 local LUA_VERSION = tonumber(_VERSION:match('Lua (%d+%.%d+)'))
+
+--- load_env_flags reads space-separated flags from an environment variable
+--- into the given array.
+--- @param arr string[]
+--- @param name string
+local function load_env_flags(arr, name)
+    local s = getenv(name)
+    if s then
+        for flag in s:gmatch('%S+') do
+            arr[#arr + 1] = flag
+        end
+    end
+end
 
 --- new create a new configh.executor object
 --- @param cc string?
@@ -68,6 +82,7 @@ function Executor:init(cc)
     self.cflags = {}
     self.libdirs = {}
     self.libs = {}
+    self.ldflags = {}
     self.buffile = assert(tmpname())
     self.buf = assert(open(self.buffile, 'r'))
     -- create new gcfn object
@@ -75,21 +90,10 @@ function Executor:init(cc)
         remove(pathname)
     end, self.buffile)
 
-    -- load CPPFLAGS environment variable
-    local cppflags_str = getenv('CPPFLAGS')
-    if cppflags_str then
-        for flag in cppflags_str:gmatch('%S+') do
-            self.cppflags[#self.cppflags + 1] = flag
-        end
-    end
-
-    -- load CFLAGS environment variable
-    local cflags_str = getenv('CFLAGS')
-    if cflags_str then
-        for flag in cflags_str:gmatch('%S+') do
-            self.cflags[#self.cflags + 1] = flag
-        end
-    end
+    -- load environment variables for flag fields
+    load_env_flags(self.cppflags, 'CPPFLAGS')
+    load_env_flags(self.cflags, 'CFLAGS')
+    load_env_flags(self.ldflags, 'LDFLAGS')
 
     return self
 end
@@ -196,6 +200,7 @@ function Executor:link(opts)
         '-o',
         outfile,
         srcfile,
+        concat(self.ldflags, ' '),
         flags_flatten(self.libdirs, '-L'),
         flags_flatten(self.libs, '-l'),
         '2>',
@@ -392,6 +397,18 @@ end
 --- @param libs string|string[]
 function Executor:set_libs(libs)
     self.libs = add_flags({}, libs)
+end
+
+--- add_ldflags append ldflags to the existing list
+--- @param flags string|string[]
+function Executor:add_ldflags(flags)
+    add_flags(self.ldflags, flags)
+end
+
+--- set_ldflags set ldflags, replacing any previously set flags
+--- @param flags string|string[]
+function Executor:set_ldflags(flags)
+    self.ldflags = add_flags({}, flags)
 end
 
 --- check_header check the header is available

@@ -228,6 +228,18 @@ function Configh:add_libs(libs)
     self.exec:add_libs(libs)
 end
 
+--- set_ldflags set ldflags, replacing any previously set flags
+--- @param flags string|string[]
+function Configh:set_ldflags(flags)
+    self.exec:set_ldflags(flags)
+end
+
+--- add_ldflags append ldflags to the existing list
+--- @param flags string|string[]
+function Configh:add_ldflags(flags)
+    self.exec:add_ldflags(flags)
+end
+
 -- Maps target name to the corresponding executor method name.
 local EXEC_METHOD = {
     headers = 'check_header',
