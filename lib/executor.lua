@@ -57,7 +57,7 @@ function Executor:init(cc)
         error('cc must be string or nil')
     end
 
-    self.cc = cc or os.getenv('CC') or 'gcc'
+    self.cc = cc
     self.features = {}
     self.cppflags = {}
     self.buffile = assert(tmpname())
