@@ -236,6 +236,43 @@ function testcase.add_incdirs()
     assert.equal(cfgh.exec.incdirs[2], '/opt/include')
 end
 
+function testcase.set_cflags()
+    local cfgh = configh('gcc')
+
+    -- test that set cflags with a string
+    cfgh:set_cflags('-O2')
+    assert.equal(#cfgh.exec.cflags, 1)
+    assert.equal(cfgh.exec.cflags[1], '-O2')
+
+    -- test that set cflags with a string array
+    cfgh:set_cflags({
+        '-O2',
+        '-Wall',
+    })
+    assert.equal(#cfgh.exec.cflags, 2)
+
+    -- test that set_cflags replaces the list
+    cfgh:set_cflags({
+        '-O0',
+    })
+    assert.equal(#cfgh.exec.cflags, 1)
+    assert.equal(cfgh.exec.cflags[1], '-O0')
+end
+
+function testcase.add_cflags()
+    local cfgh = configh('gcc')
+
+    -- test that add_cflags appends to the existing list
+    cfgh:add_cflags('-O2')
+    assert.equal(#cfgh.exec.cflags, 1)
+    cfgh:add_cflags({
+        '-Wall',
+    })
+    assert.equal(#cfgh.exec.cflags, 2)
+    assert.equal(cfgh.exec.cflags[1], '-O2')
+    assert.equal(cfgh.exec.cflags[2], '-Wall')
+end
+
 function testcase.flush()
     local cfgh = configh('gcc')
     cfgh:set_feature('_GNU_SOURCE')

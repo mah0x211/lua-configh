@@ -192,6 +192,18 @@ function Configh:add_incdirs(dirs)
     self.exec:add_incdirs(dirs)
 end
 
+--- set_cflags set cflags, replacing any previously set flags
+--- @param flags string|string[]
+function Configh:set_cflags(flags)
+    self.exec:set_cflags(flags)
+end
+
+--- add_cflags append cflags to the existing list
+--- @param flags string|string[]
+function Configh:add_cflags(flags)
+    self.exec:add_cflags(flags)
+end
+
 -- Maps target name to the corresponding executor method name.
 local EXEC_METHOD = {
     headers = 'check_header',

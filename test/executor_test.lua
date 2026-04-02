@@ -537,3 +537,128 @@ function testcase.incdirs_functional()
     os.execute('rmdir ' .. tmpdir)
 end
 
+function testcase.set_cflags()
+    local exec = executor('gcc')
+
+    -- test that set cflags with a string
+    exec:set_cflags('-O2')
+    assert.equal(#exec.cflags, 1)
+    assert.equal(exec.cflags[1], '-O2')
+
+    -- test that set cflags with a string array
+    exec:set_cflags({
+        '-O2',
+        '-Wall',
+        '-Wextra',
+    })
+    assert.equal(#exec.cflags, 3)
+    assert.equal(exec.cflags[1], '-O2')
+    assert.equal(exec.cflags[2], '-Wall')
+    assert.equal(exec.cflags[3], '-Wextra')
+
+    -- test that set_cflags replaces the existing list
+    exec:set_cflags({
+        '-O0',
+    })
+    assert.equal(#exec.cflags, 1)
+    assert.equal(exec.cflags[1], '-O0')
+
+    -- test that set_cflags with empty array clears the list
+    exec:set_cflags({})
+    assert.equal(#exec.cflags, 0)
+
+    -- test that empty string and whitespace-only strings are ignored
+    exec:set_cflags('')
+    assert.equal(#exec.cflags, 0)
+    exec:set_cflags({
+        '-O2',
+        '',
+        '   ',
+        '-g',
+    })
+    assert.equal(#exec.cflags, 2)
+    assert.equal(exec.cflags[1], '-O2')
+    assert.equal(exec.cflags[2], '-g')
+
+    -- test that leading/trailing whitespace is trimmed
+    exec:set_cflags('  -O1  ')
+    assert.equal(#exec.cflags, 1)
+    assert.equal(exec.cflags[1], '-O1')
+
+    -- test that throws an error if flags is not string or table
+    local err = assert.throws(exec.set_cflags, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of flags is not string
+    err = assert.throws(exec.set_cflags, exec, {
+        '-O2',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.add_cflags()
+    local exec = executor('gcc')
+
+    -- test that add cflags with a string
+    exec:add_cflags('-O2')
+    assert.equal(#exec.cflags, 1)
+    assert.equal(exec.cflags[1], '-O2')
+
+    -- test that add cflags with a string array appends to existing list
+    exec:add_cflags({
+        '-Wall',
+        '-Wextra',
+    })
+    assert.equal(#exec.cflags, 3)
+    assert.equal(exec.cflags[1], '-O2')
+    assert.equal(exec.cflags[2], '-Wall')
+    assert.equal(exec.cflags[3], '-Wextra')
+
+    -- test that set_cflags replaces all flags including those added via add_cflags
+    exec:set_cflags({
+        '-O0',
+    })
+    assert.equal(#exec.cflags, 1)
+    assert.equal(exec.cflags[1], '-O0')
+
+    -- test that throws an error if flags is not string or table
+    local err = assert.throws(exec.add_cflags, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of flags is not string
+    err = assert.throws(exec.add_cflags, exec, {
+        '-O2',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.cflags_env()
+    -- test that load CFLAGS environment variable
+    setenv('CFLAGS', '-O2 -Wall')
+    local exec = executor('gcc')
+    assert.equal(#exec.cflags, 2)
+    assert.equal(exec.cflags[1], '-O2')
+    assert.equal(exec.cflags[2], '-Wall')
+
+    -- test that add_cflags appends to env-loaded flags
+    exec:add_cflags('-g')
+    assert.equal(#exec.cflags, 3)
+    assert.equal(exec.cflags[3], '-g')
+
+    -- test that set_cflags replaces env-loaded flags
+    exec:set_cflags({
+        '-O0',
+    })
+    assert.equal(#exec.cflags, 1)
+    assert.equal(exec.cflags[1], '-O0')
+    setenv('CFLAGS', nil)
+
+    -- test that CFLAGS environment variable is empty
+    setenv('CFLAGS', '')
+    exec = executor('gcc')
+    assert.equal(#exec.cflags, 0)
+    setenv('CFLAGS', nil)
+end
+

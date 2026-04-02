@@ -38,6 +38,7 @@ local gcfn = require('gcfn')
 --- @field features table<string, integer>|table<integer, string>
 --- @field cppflags string[]
 --- @field incdirs string[]
+--- @field cflags string[]
 --- @field buffile string
 --- @field buf file*
 local Executor = {}
@@ -62,6 +63,7 @@ function Executor:init(cc)
     self.features = {}
     self.cppflags = {}
     self.incdirs = {}
+    self.cflags = {}
     self.buffile = assert(tmpname())
     self.buf = assert(open(self.buffile, 'r'))
     -- create new gcfn object
@@ -74,6 +76,14 @@ function Executor:init(cc)
     if cppflags_str then
         for flag in cppflags_str:gmatch('%S+') do
             self.cppflags[#self.cppflags + 1] = flag
+        end
+    end
+
+    -- load CFLAGS environment variable
+    local cflags_str = getenv('CFLAGS')
+    if cflags_str then
+        for flag in cflags_str:gmatch('%S+') do
+            self.cflags[#self.cflags + 1] = flag
         end
     end
 
@@ -152,6 +162,7 @@ function Executor:compile(opts)
         self.cc,
         concat(self.cppflags, ' '),
         flags_flatten(self.incdirs, '-I'),
+        concat(self.cflags, ' '),
         '-fsyntax-only',
         srcfile,
         '2>',
@@ -177,6 +188,7 @@ function Executor:link(opts)
         self.cc,
         concat(self.cppflags, ' '),
         flags_flatten(self.incdirs, '-I'),
+        concat(self.cflags, ' '),
         '-o',
         outfile,
         srcfile,
@@ -338,6 +350,18 @@ end
 --- @param dirs string|string[]
 function Executor:set_incdirs(dirs)
     self.incdirs = add_flags({}, dirs)
+end
+
+--- add_cflags append cflags to the existing list
+--- @param flags string|string[]
+function Executor:add_cflags(flags)
+    add_flags(self.cflags, flags)
+end
+
+--- set_cflags set cflags, replacing any previously set flags
+--- @param flags string|string[]
+function Executor:set_cflags(flags)
+    self.cflags = add_flags({}, flags)
 end
 
 --- check_header check the header is available
