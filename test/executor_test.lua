@@ -260,46 +260,83 @@ function testcase.check_member()
     assert.match(err, 'member must be a string')
 end
 
-function testcase.add_and_remove_cppflag()
+function testcase.set_cppflags()
     local exec = executor('gcc')
 
-    -- test that add cppflag
-    exec:add_cppflag('-I/usr/local/include')
-    assert.is_uint(exec.cppflags['-I/usr/local/include'])
-    assert.equal(exec.cppflags[exec.cppflags['-I/usr/local/include']],
-                 '-I/usr/local/include')
+    -- test that set cppflags with a string
+    exec:set_cppflags('-I/usr/local/include')
+    assert.equal(#exec.cppflags, 1)
+    assert.equal(exec.cppflags[1], '-I/usr/local/include')
 
-    -- test that add multiple cppflags
-    exec:add_cppflag('-I/opt/include')
-    exec:add_cppflag('-DDEBUG')
+    -- test that set cppflags with a string array
+    exec:set_cppflags({
+        '-I/usr/local/include',
+        '-I/opt/include',
+        '-DDEBUG',
+    })
     assert.equal(#exec.cppflags, 3)
+    assert.equal(exec.cppflags[1], '-I/usr/local/include')
+    assert.equal(exec.cppflags[2], '-I/opt/include')
+    assert.equal(exec.cppflags[3], '-DDEBUG')
 
-    -- test that do not add duplicate cppflag (slot count unchanged)
-    exec:add_cppflag('-I/usr/local/include')
+    -- test that set_cppflags replaces the existing list
+    exec:set_cppflags({
+        '-I/new/path',
+    })
+    assert.equal(#exec.cppflags, 1)
+    assert.equal(exec.cppflags[1], '-I/new/path')
+
+    -- test that set_cppflags with empty array clears the list
+    exec:set_cppflags({})
+    assert.equal(#exec.cppflags, 0)
+
+    -- test that throws an error if flags is not string or table
+    local err = assert.throws(exec.set_cppflags, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of flags is not string
+    err = assert.throws(exec.set_cppflags, exec, {
+        '-I/usr/local/include',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.add_cppflags()
+    local exec = executor('gcc')
+
+    -- test that add cppflags with a string
+    exec:add_cppflags('-I/usr/local/include')
+    assert.equal(#exec.cppflags, 1)
+    assert.equal(exec.cppflags[1], '-I/usr/local/include')
+
+    -- test that add cppflags with a string array appends to existing list
+    exec:add_cppflags({
+        '-I/opt/include',
+        '-DDEBUG',
+    })
     assert.equal(#exec.cppflags, 3)
+    assert.equal(exec.cppflags[1], '-I/usr/local/include')
+    assert.equal(exec.cppflags[2], '-I/opt/include')
+    assert.equal(exec.cppflags[3], '-DDEBUG')
 
-    -- test that remove_cppflag blanks the slot; flag key is retained
-    local idx = exec.cppflags['-I/usr/local/include']
-    exec:remove_cppflag('-I/usr/local/include')
-    assert.is_uint(exec.cppflags['-I/usr/local/include'])
-    assert.equal(exec.cppflags[idx], '')
-    assert.equal(#exec.cppflags, 3)
+    -- test that set_cppflags replaces all flags including those added via add_cppflags
+    exec:set_cppflags({
+        '-I/new/path',
+    })
+    assert.equal(#exec.cppflags, 1)
+    assert.equal(exec.cppflags[1], '-I/new/path')
 
-    -- test that add_cppflag reactivates the existing slot
-    exec:add_cppflag('-I/usr/local/include')
-    assert.equal(exec.cppflags['-I/usr/local/include'], idx)
-    assert.equal(exec.cppflags[idx], '-I/usr/local/include')
-    assert.equal(#exec.cppflags, 3)
+    -- test that throws an error if flags is not string or table
+    local err = assert.throws(exec.add_cppflags, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
 
-    -- test that remove non-existent cppflag does not throw error
-    exec:remove_cppflag('-I/nonexistent')
-    assert.equal(#exec.cppflags, 3)
-
-    -- test that throws an error if flag argument is not string
-    local err = assert.throws(exec.add_cppflag, exec, 123)
-    assert.match(err, 'flag must be string')
-    err = assert.throws(exec.remove_cppflag, exec, 123)
-    assert.match(err, 'flag must be string')
+    -- test that throws an error if an element of flags is not string
+    err = assert.throws(exec.add_cppflags, exec, {
+        '-I/usr/local/include',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
 end
 
 function testcase.check_decl()
@@ -334,9 +371,21 @@ function testcase.cppflags_env()
     -- test that load CPPFLAGS environment variable
     setenv('CPPFLAGS', '-I/usr/local/include -DDEBUG')
     local exec = executor('gcc')
-    assert.is_uint(exec.cppflags['-I/usr/local/include'])
-    assert.is_uint(exec.cppflags['-DDEBUG'])
     assert.equal(#exec.cppflags, 2)
+    assert.equal(exec.cppflags[1], '-I/usr/local/include')
+    assert.equal(exec.cppflags[2], '-DDEBUG')
+
+    -- test that add_cppflags appends to env-loaded flags
+    exec:add_cppflags('-I/opt/include')
+    assert.equal(#exec.cppflags, 3)
+    assert.equal(exec.cppflags[3], '-I/opt/include')
+
+    -- test that set_cppflags replaces env-loaded flags
+    exec:set_cppflags({
+        '-I/new/path',
+    })
+    assert.equal(#exec.cppflags, 1)
+    assert.equal(exec.cppflags[1], '-I/new/path')
     setenv('CPPFLAGS', nil)
 
     -- test that CPPFLAGS environment variable is empty

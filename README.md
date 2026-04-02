@@ -236,7 +236,7 @@ cfgh:set_feature('_GNU_SOURCE')
 
 -- add cppflags
 -- CPPFLAGS environment variable is also loaded automatically
-cfgh:add_cppflag('-I/usr/local/include')
+cfgh:add_cppflags({'-I/usr/local/include', '-DDEBUG'})
 
 -- check whether the specified header file exists
 local ok, err = cfgh:check_header('stdio.h')
@@ -321,27 +321,31 @@ Removes a feature macro that was set by the `configh:set_feature` method.
 - `name:string`: a feature macro name.
 
 
-## configh:add_cppflag( flag )
+## configh:set_cppflags( flags )
 
-Adds a cppflag to be used when compiling test code.
+Sets the cppflags to be used when compiling test code. Replaces any previously set cppflags, including those loaded from the `CPPFLAGS` environment variable.
 
 **Parameters**
 
-- `flag:string`: a cppflag string (e.g. `-I/usr/local/include`, `-DDEBUG`).
+- `flags:string|string[]`: a cppflag string or an array of cppflag strings (e.g. `'-I/usr/local/include'` or `{'-I/usr/local/include', '-DDEBUG'}`).
+
+**NOTE**
+
+- Tilde (`~`) is **not** expanded. Use `$HOME` or absolute path instead (e.g. `-I$HOME/include` or `-I/home/user/include`).
+
+
+## configh:add_cppflags( flags )
+
+Appends cppflags to the existing list. Flags loaded from the `CPPFLAGS` environment variable are preserved.
+
+**Parameters**
+
+- `flags:string|string[]`: a cppflag string or an array of cppflag strings (e.g. `'-I/usr/local/include'` or `{'-I/usr/local/include', '-DDEBUG'}`).
 
 **NOTE**
 
 - The `CPPFLAGS` environment variable is automatically loaded when creating a `configh` object.
 - Tilde (`~`) is **not** expanded. Use `$HOME` or absolute path instead (e.g. `-I$HOME/include` or `-I/home/user/include`).
-
-
-## configh:remove_cppflag( flag )
-
-Removes a cppflag that was added by the `configh:add_cppflag` method.
-
-**Parameters**
-
-- `flag:string`: a cppflag string.
 
 
 ## configh:output_status( enabled )

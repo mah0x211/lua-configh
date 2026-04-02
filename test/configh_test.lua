@@ -159,26 +159,44 @@ function testcase.output_status()
     assert.match(stdout:read('*a'), 'check header: stdio.h ... found')
 end
 
-function testcase.add_and_remove_cppflag()
+function testcase.set_cppflags()
     local cfgh = configh('gcc')
 
-    -- test that add cppflag
-    cfgh:add_cppflag('-I/usr/local/include')
-    assert.is_uint(cfgh.exec.cppflags['-I/usr/local/include'])
-    assert.equal(cfgh.exec.cppflags[cfgh.exec.cppflags['-I/usr/local/include']],
-                 '-I/usr/local/include')
+    -- test that set cppflags with a string
+    cfgh:set_cppflags('-I/usr/local/include')
+    assert.equal(#cfgh.exec.cppflags, 1)
+    assert.equal(cfgh.exec.cppflags[1], '-I/usr/local/include')
 
-    -- test that add multiple cppflags
-    cfgh:add_cppflag('-I/opt/include')
-    cfgh:add_cppflag('-DDEBUG')
+    -- test that set cppflags with a string array
+    cfgh:set_cppflags({
+        '-I/usr/local/include',
+        '-I/opt/include',
+        '-DDEBUG',
+    })
     assert.equal(#cfgh.exec.cppflags, 3)
 
-    -- test that remove_cppflag blanks the slot; slot count unchanged
-    local idx = cfgh.exec.cppflags['-I/usr/local/include']
-    cfgh:remove_cppflag('-I/usr/local/include')
-    assert.is_uint(cfgh.exec.cppflags['-I/usr/local/include'])
-    assert.equal(cfgh.exec.cppflags[idx], '')
+    -- test that set_cppflags replaces the list
+    cfgh:set_cppflags({
+        '-I/new/path',
+    })
+    assert.equal(#cfgh.exec.cppflags, 1)
+    assert.equal(cfgh.exec.cppflags[1], '-I/new/path')
+end
+
+function testcase.add_cppflags()
+    local cfgh = configh('gcc')
+
+    -- test that add_cppflags appends to the existing list
+    cfgh:add_cppflags('-I/usr/local/include')
+    assert.equal(#cfgh.exec.cppflags, 1)
+    cfgh:add_cppflags({
+        '-I/opt/include',
+        '-DDEBUG',
+    })
     assert.equal(#cfgh.exec.cppflags, 3)
+    assert.equal(cfgh.exec.cppflags[1], '-I/usr/local/include')
+    assert.equal(cfgh.exec.cppflags[2], '-I/opt/include')
+    assert.equal(cfgh.exec.cppflags[3], '-DDEBUG')
 end
 
 function testcase.flush()

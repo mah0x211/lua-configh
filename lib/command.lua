@@ -336,9 +336,7 @@ local function command(args, stdout, stderr)
 
     -- add cppflags
     if config.cppflags then
-        for _, flag in ipairs(config.cppflags) do
-            cfgh:add_cppflag(flag)
-        end
+        cfgh:add_cppflags(config.cppflags)
     end
 
     -- check headers

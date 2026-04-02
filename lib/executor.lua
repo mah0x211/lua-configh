@@ -36,7 +36,7 @@ local gcfn = require('gcfn')
 --- @class configh.executor
 --- @field cc string
 --- @field features table<string, integer>|table<integer, string>
---- @field cppflags table<string, integer>|table<integer, string>
+--- @field cppflags string[]
 --- @field buffile string
 --- @field buf file*
 local Executor = {}
@@ -71,10 +71,7 @@ function Executor:init(cc)
     local cppflags_str = getenv('CPPFLAGS')
     if cppflags_str then
         for flag in cppflags_str:gmatch('%S+') do
-            if not self.cppflags[flag] then
-                self.cppflags[#self.cppflags + 1] = flag
-                self.cppflags[flag] = #self.cppflags
-            end
+            self.cppflags[#self.cppflags + 1] = flag
         end
     end
 
@@ -270,29 +267,39 @@ function Executor:unset_feature(name)
     end
 end
 
---- add_cppflag add a cppflag
---- @param flag string
-function Executor:add_cppflag(flag)
-    assert(type(flag) == 'string', 'flag must be string')
-
-    local idx = self.cppflags[flag]
-    if idx then
-        self.cppflags[idx] = flag
-    else
-        self.cppflags[#self.cppflags + 1] = flag
-        self.cppflags[flag] = #self.cppflags
+--- add_flags validates and normalizes flags to a string array
+--- @param arr string[]
+--- @param flags string|string[]
+--- @return string[]
+local function add_flags(arr, flags)
+    assert(type(arr) == 'table', 'arr must be a table')
+    if type(flags) == 'string' then
+        arr[#arr + 1] = flags
+        return arr
+    elseif type(flags) ~= 'table' then
+        error('flags must be a string or string[]')
     end
+
+    -- validate and append flags to array
+    for i, v in ipairs(flags) do
+        if type(v) ~= 'string' then
+            error(format('flags#%d must be a string', i))
+        end
+        arr[#arr + 1] = v
+    end
+    return arr
 end
 
---- remove_cppflag remove a cppflag
---- @param flag string
-function Executor:remove_cppflag(flag)
-    assert(type(flag) == 'string', 'flag must be string')
+--- add_cppflags append cppflags to the existing list
+--- @param flags string|string[]
+function Executor:add_cppflags(flags)
+    add_flags(self.cppflags, flags)
+end
 
-    local idx = self.cppflags[flag]
-    if idx then
-        self.cppflags[idx] = ''
-    end
+--- set_cppflags set cppflags, replacing any previously set flags
+--- @param flags string|string[]
+function Executor:set_cppflags(flags)
+    self.cppflags = add_flags({}, flags)
 end
 
 --- check_header check the header is available
