@@ -62,91 +62,88 @@ function testcase.check_header()
     -- test that check whether the header is available
     local ok, err = cfgh:check_header('stdio.h')
     assert(ok, err)
-    -- confirm that the macro is defined in macro list
-    assert.re_match(table.concat(cfgh.macros), '^#define HAVE_STDIO_H 1', 'm')
+    -- confirm that the entry is recorded in inspected
+    assert.equal(cfgh.inspected.headers['stdio.h'].is_exists, true)
+    assert.equal(cfgh.inspected.headers['stdio.h'].target, 'headers')
+    -- integer key and target hash key refer to the same entry
+    assert.equal(cfgh.inspected[1], cfgh.inspected.headers['stdio.h'])
 
-    -- test that add commented macro if the header is not available
+    -- test that not-found header is recorded in inspected
     ok, err = cfgh:check_header('this_is_unknown_header_for_test.h')
     assert.is_false(ok)
     assert.is_string(err)
-    assert.re_match(table.concat(cfgh.macros, '\n'),
-                    '^/\\* #undef HAVE_THIS_IS_UNKNOWN_HEADER_FOR_TEST_H \\*/',
-                    'm')
+    assert.equal(cfgh.inspected.headers['this_is_unknown_header_for_test.h']
+                     .is_exists, false)
 end
 
 function testcase.check_func()
     local cfgh = configh('gcc')
+    assert(cfgh:check_header('stdio.h'))
 
     -- test that check whether the function is available
     local ok, err = cfgh:check_func('stdio.h', 'printf')
     assert(ok, err)
-    -- confirm that the macro is defined in macro list
-    assert.re_match(table.concat(cfgh.macros, '\n'), '^#define HAVE_PRINTF 1',
-                    'm')
+    -- confirm that the entry is recorded in inspected.funcs keyed by fqname
+    assert.equal(cfgh.inspected.funcs['printf'].is_exists, true)
 
-    -- test that add commented macro if the function is not available
+    -- test that probe without header includes returns false
     ok, err = cfgh:check_func(nil, 'printf')
     assert.is_false(ok)
     assert.is_string(err)
-    assert.re_match(table.concat(cfgh.macros, '\n'),
-                    '^/\\* #undef HAVE_PRINTF \\*/', 'm')
 end
 
 function testcase.check_type()
     local cfgh = configh('gcc')
+    assert(cfgh:check_header('sys/socket.h'))
 
     -- test that check whether the type is available
     local ok, err = cfgh:check_type('sys/socket.h', 'struct sockaddr_storage')
     assert(ok, err)
-    -- confirm that the macro is defined in macro list
-    assert.re_match(table.concat(cfgh.macros, '\n'),
-                    '^#define HAVE_STRUCT_SOCKADDR_STORAGE 1', 'm')
+    -- confirm that the entry is recorded in inspected.types keyed by fqname
+    assert.equal(cfgh.inspected.types['struct sockaddr_storage'].is_exists, true)
 
-    -- test that add commented macro if the type is not available
+    -- test that probe without header includes returns false
     ok, err = cfgh:check_type(nil, 'struct sockaddr_storage')
     assert.is_false(ok)
     assert.is_string(err)
-    assert.re_match(table.concat(cfgh.macros, '\n'),
-                    '^/\\* #undef HAVE_STRUCT_SOCKADDR_STORAGE \\*/', 'm')
 end
 
 function testcase.check_member()
     local cfgh = configh('gcc')
+    assert(cfgh:check_header('sys/socket.h'))
 
     -- test that check whether the member is available
     local ok, err = cfgh:check_member('sys/socket.h', 'struct sockaddr',
                                       'sa_family')
     assert(ok, err)
-    -- confirm that the macro is defined in macro list
-    assert.re_match(table.concat(cfgh.macros, '\n'),
-                    '^#define HAVE_STRUCT_SOCKADDR_SA_FAMILY 1', 'm')
+    -- confirm that the entry is recorded in inspected.members keyed by fqname
+    assert.equal(cfgh.inspected.members['struct sockaddr.sa_family'].is_exists,
+                 true)
 
-    -- test that add commented macro if the member is not available
+    -- test that member probe for unknown member returns false
     ok, err = cfgh:check_member('sys/socket.h', 'struct sockaddr',
                                 'unknown_member')
     assert.is_false(ok)
     assert.is_string(err)
-    assert.re_match(table.concat(cfgh.macros, '\n'),
-                    '^/\\* #undef HAVE_STRUCT_SOCKADDR_UNKNOWN_MEMBER \\*/', 'm')
+    assert.equal(cfgh.inspected.members['struct sockaddr.unknown_member']
+                     .is_exists, false)
 end
 
 function testcase.check_decl()
     local cfgh = configh('gcc')
+    assert(cfgh:check_header('limits.h'))
 
     -- test that check whether the macro constant is defined
     local ok, err = cfgh:check_decl('limits.h', 'PATH_MAX')
     assert(ok, err)
-    -- confirm that the macro is defined in macro list
-    assert.re_match(table.concat(cfgh.macros, '\n'), '^#define HAVE_PATH_MAX 1',
-                    'm')
+    -- confirm that the entry is recorded in inspected.decls keyed by fqname
+    assert.equal(cfgh.inspected.decls['PATH_MAX'].is_exists, true)
 
     -- test that add commented macro if the declaration is not available
     ok, err = cfgh:check_decl('limits.h', 'UNKNOWN_CONSTANT')
     assert.is_false(ok)
     assert.is_string(err)
-
-    assert.re_match(table.concat(cfgh.macros, '\n'),
-                    '^/\\* #undef HAVE_UNKNOWN_CONSTANT \\*/', 'm')
+    assert.equal(cfgh.inspected.decls['UNKNOWN_CONSTANT'].is_exists, false)
 end
 
 function testcase.output_status()
@@ -176,10 +173,12 @@ function testcase.add_and_remove_cppflag()
     cfgh:add_cppflag('-DDEBUG')
     assert.equal(#cfgh.exec.cppflags, 3)
 
-    -- test that remove cppflag
+    -- test that remove_cppflag blanks the slot; slot count unchanged
+    local idx = cfgh.exec.cppflags['-I/usr/local/include']
     cfgh:remove_cppflag('-I/usr/local/include')
-    assert.is_nil(cfgh.exec.cppflags['-I/usr/local/include'])
-    assert.equal(#cfgh.exec.cppflags, 2)
+    assert.is_uint(cfgh.exec.cppflags['-I/usr/local/include'])
+    assert.equal(cfgh.exec.cppflags[idx], '')
+    assert.equal(#cfgh.exec.cppflags, 3)
 end
 
 function testcase.flush()
@@ -214,5 +213,36 @@ function testcase.flush()
     -- test that throws an error if a pathname is nil
     err = assert.throws(cfgh.flush, cfgh)
     assert.match(err, 'pathname must be string')
+end
+
+function testcase.inspected_mixed_table()
+    local cfgh = configh('gcc')
+    assert(cfgh:check_header('stdio.h'))
+    assert(cfgh:check_func('stdio.h', 'printf'))
+
+    -- integer key and target hash key share the same entry reference
+    local h = cfgh.inspected.headers['stdio.h']
+    assert.equal(h, cfgh.inspected[1])
+    assert.equal(h.target, 'headers')
+    assert.equal(h.declname, 'stdio.h')
+    assert.equal(h.order, 1)
+
+    local f = cfgh.inspected.funcs['printf']
+    assert.equal(f, cfgh.inspected[2])
+    assert.equal(f.target, 'funcs')
+    assert.equal(f.declname, 'printf')
+    assert.equal(f.order, 2)
+end
+
+function testcase.check_header_dedup()
+    local cfgh = configh('gcc')
+    cfgh:check_header('stdio.h')
+    cfgh:check_header('stdio.h') -- re-probes and updates existing entry; no new integer entry
+    assert.equal(#cfgh.inspected, 1)
+
+    -- check_func dedup: same fqname re-probes but adds no new integer entry
+    cfgh:check_func('stdio.h', 'printf')
+    cfgh:check_func('stdio.h', 'printf') -- re-probe, no new entry
+    assert.equal(#cfgh.inspected, 2)
 end
 

@@ -73,15 +73,105 @@ function testcase.set_and_unset_featrue()
     assert.equal(exec.features[exec.features._GNU_SOURCE],
                  '#define _GNU_SOURCE "foo"')
 
-    -- test that remove feature macro
+    -- test that unset blanks the slot; name key is retained
     exec:unset_feature('_GNU_SOURCE')
-    assert.is_nil(exec.features._GNU_SOURCE)
+    local idx = exec.features._GNU_SOURCE
+    assert.is_uint(idx)
+    assert.equal(exec.features[idx], '')
+
+    -- test that set_feature reuses the existing slot after unset
+    exec:set_feature('_GNU_SOURCE')
+    assert.equal(exec.features._GNU_SOURCE, idx)
+    assert.equal(exec.features[idx], '#define _GNU_SOURCE')
 
     -- test that throws an error if name argument is nether nil, string nor number
     local err = assert.throws(exec.set_feature, exec, {})
     assert.match(err, 'name must be string')
     err = assert.throws(exec.unset_feature, exec, {})
     assert.match(err, 'name must be string')
+end
+
+function testcase.unset_feature_reenable()
+    local exec = executor('gcc')
+    exec:set_feature('A')
+    exec:set_feature('B')
+    exec:set_feature('C')
+
+    -- unset middle slot and confirm indices are stable
+    local idx_a = exec.features.A
+    local idx_b = exec.features.B
+    local idx_c = exec.features.C
+    exec:unset_feature('B')
+    assert.equal(exec.features.A, idx_a)
+    assert.equal(exec.features.B, idx_b)
+    assert.equal(exec.features.C, idx_c)
+    assert.equal(exec.features[idx_b], '')
+
+    -- unset first slot
+    exec:unset_feature('A')
+    assert.equal(exec.features[idx_a], '')
+    assert.equal(exec.features[idx_c], '#define C')
+
+    -- re-enable B reuses its existing slot
+    exec:set_feature('B', '1')
+    assert.equal(exec.features.B, idx_b)
+    assert.equal(exec.features[idx_b], '#define B 1')
+end
+
+function testcase.preprocess()
+    local exec = executor('gcc')
+
+    -- test that preprocess succeeds for an existing header
+    local ok, err = exec:preprocess({
+        headers = 'stdio.h',
+    })
+    assert.is_true(ok)
+    assert.is_nil(err)
+
+    -- test that preprocess fails for a nonexistent header
+    ok, err = exec:preprocess({
+        headers = 'this_is_unknown_header_for_test.h',
+    })
+    assert.is_false(ok)
+    assert.is_string(err)
+end
+
+function testcase.compile()
+    local exec = executor('gcc')
+
+    -- test that compile succeeds for an existing type (with header)
+    local ok, err = exec:compile({
+        headers = 'sys/socket.h',
+        code = 'struct sockaddr_storage x',
+    })
+    assert.is_true(ok)
+    assert.is_nil(err)
+
+    -- test that compile fails for an unknown type
+    ok, err = exec:compile({
+        code = 'unknown_type_xyz_for_test x',
+    })
+    assert.is_false(ok)
+    assert.is_string(err)
+end
+
+function testcase.link()
+    local exec = executor('gcc')
+
+    -- test that link succeeds for an existing function (with header)
+    local ok, err = exec:link({
+        headers = 'stdio.h',
+        code = 'void (*fp)(void) = (void (*)(void))printf',
+    })
+    assert.is_true(ok)
+    assert.is_nil(err)
+
+    -- test that link fails for a nonexistent function
+    ok, err = exec:link({
+        code = 'void (*fp)(void) = (void (*)(void))nonexistent_func_xyz_for_test',
+    })
+    assert.is_false(ok)
+    assert.is_string(err)
 end
 
 function testcase.check_header()
@@ -184,18 +274,26 @@ function testcase.add_and_remove_cppflag()
     exec:add_cppflag('-DDEBUG')
     assert.equal(#exec.cppflags, 3)
 
-    -- test that do not add duplicate cppflag
+    -- test that do not add duplicate cppflag (slot count unchanged)
     exec:add_cppflag('-I/usr/local/include')
     assert.equal(#exec.cppflags, 3)
 
-    -- test that remove cppflag
+    -- test that remove_cppflag blanks the slot; flag key is retained
+    local idx = exec.cppflags['-I/usr/local/include']
     exec:remove_cppflag('-I/usr/local/include')
-    assert.is_nil(exec.cppflags['-I/usr/local/include'])
-    assert.equal(#exec.cppflags, 2)
+    assert.is_uint(exec.cppflags['-I/usr/local/include'])
+    assert.equal(exec.cppflags[idx], '')
+    assert.equal(#exec.cppflags, 3)
+
+    -- test that add_cppflag reactivates the existing slot
+    exec:add_cppflag('-I/usr/local/include')
+    assert.equal(exec.cppflags['-I/usr/local/include'], idx)
+    assert.equal(exec.cppflags[idx], '-I/usr/local/include')
+    assert.equal(#exec.cppflags, 3)
 
     -- test that remove non-existent cppflag does not throw error
     exec:remove_cppflag('-I/nonexistent')
-    assert.equal(#exec.cppflags, 2)
+    assert.equal(#exec.cppflags, 3)
 
     -- test that throws an error if flag argument is not string
     local err = assert.throws(exec.add_cppflag, exec, 123)
