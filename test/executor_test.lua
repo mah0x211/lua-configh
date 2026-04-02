@@ -662,3 +662,96 @@ function testcase.cflags_env()
     setenv('CFLAGS', nil)
 end
 
+function testcase.set_libdirs()
+    local exec = executor('gcc')
+
+    -- test that set libdirs with a string
+    exec:set_libdirs('/usr/local/lib')
+    assert.equal(#exec.libdirs, 1)
+    assert.equal(exec.libdirs[1], '/usr/local/lib')
+
+    -- test that set libdirs with a string array
+    exec:set_libdirs({
+        '/usr/local/lib',
+        '/opt/lib',
+    })
+    assert.equal(#exec.libdirs, 2)
+    assert.equal(exec.libdirs[1], '/usr/local/lib')
+    assert.equal(exec.libdirs[2], '/opt/lib')
+
+    -- test that set_libdirs replaces the existing list
+    exec:set_libdirs({
+        '/new/lib',
+    })
+    assert.equal(#exec.libdirs, 1)
+    assert.equal(exec.libdirs[1], '/new/lib')
+
+    -- test that set_libdirs with empty array clears the list
+    exec:set_libdirs({})
+    assert.equal(#exec.libdirs, 0)
+
+    -- test that empty string and whitespace-only strings are ignored
+    exec:set_libdirs('')
+    assert.equal(#exec.libdirs, 0)
+    exec:set_libdirs({
+        '/a',
+        '',
+        '   ',
+        '/b',
+    })
+    assert.equal(#exec.libdirs, 2)
+    assert.equal(exec.libdirs[1], '/a')
+    assert.equal(exec.libdirs[2], '/b')
+
+    -- test that leading/trailing whitespace is trimmed
+    exec:set_libdirs('  /trimmed  ')
+    assert.equal(#exec.libdirs, 1)
+    assert.equal(exec.libdirs[1], '/trimmed')
+
+    -- test that throws an error if dirs is not string or table
+    local err = assert.throws(exec.set_libdirs, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of dirs is not string
+    err = assert.throws(exec.set_libdirs, exec, {
+        '/usr/local/lib',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.add_libdirs()
+    local exec = executor('gcc')
+
+    -- test that add libdirs with a string
+    exec:add_libdirs('/usr/local/lib')
+    assert.equal(#exec.libdirs, 1)
+    assert.equal(exec.libdirs[1], '/usr/local/lib')
+
+    -- test that add libdirs with a string array appends to existing list
+    exec:add_libdirs({
+        '/opt/lib',
+    })
+    assert.equal(#exec.libdirs, 2)
+    assert.equal(exec.libdirs[1], '/usr/local/lib')
+    assert.equal(exec.libdirs[2], '/opt/lib')
+
+    -- test that set_libdirs replaces all dirs including those added via add_libdirs
+    exec:set_libdirs({
+        '/new/lib',
+    })
+    assert.equal(#exec.libdirs, 1)
+    assert.equal(exec.libdirs[1], '/new/lib')
+
+    -- test that throws an error if dirs is not string or table
+    local err = assert.throws(exec.add_libdirs, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of dirs is not string
+    err = assert.throws(exec.add_libdirs, exec, {
+        '/usr/local/lib',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+

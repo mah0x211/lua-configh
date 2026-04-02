@@ -273,6 +273,39 @@ function testcase.add_cflags()
     assert.equal(cfgh.exec.cflags[2], '-Wall')
 end
 
+function testcase.set_libdirs()
+    local cfgh = configh('gcc')
+
+    cfgh:set_libdirs('/usr/local/lib')
+    assert.equal(#cfgh.exec.libdirs, 1)
+    assert.equal(cfgh.exec.libdirs[1], '/usr/local/lib')
+
+    cfgh:set_libdirs({
+        '/usr/local/lib',
+        '/opt/lib',
+    })
+    assert.equal(#cfgh.exec.libdirs, 2)
+
+    cfgh:set_libdirs({
+        '/new/lib',
+    })
+    assert.equal(#cfgh.exec.libdirs, 1)
+    assert.equal(cfgh.exec.libdirs[1], '/new/lib')
+end
+
+function testcase.add_libdirs()
+    local cfgh = configh('gcc')
+
+    cfgh:add_libdirs('/usr/local/lib')
+    assert.equal(#cfgh.exec.libdirs, 1)
+    cfgh:add_libdirs({
+        '/opt/lib',
+    })
+    assert.equal(#cfgh.exec.libdirs, 2)
+    assert.equal(cfgh.exec.libdirs[1], '/usr/local/lib')
+    assert.equal(cfgh.exec.libdirs[2], '/opt/lib')
+end
+
 function testcase.flush()
     local cfgh = configh('gcc')
     cfgh:set_feature('_GNU_SOURCE')

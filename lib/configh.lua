@@ -204,6 +204,18 @@ function Configh:add_cflags(flags)
     self.exec:add_cflags(flags)
 end
 
+--- set_libdirs set library directories, replacing any previously set dirs
+--- @param dirs string|string[]
+function Configh:set_libdirs(dirs)
+    self.exec:set_libdirs(dirs)
+end
+
+--- add_libdirs append library directories to the existing list
+--- @param dirs string|string[]
+function Configh:add_libdirs(dirs)
+    self.exec:add_libdirs(dirs)
+end
+
 -- Maps target name to the corresponding executor method name.
 local EXEC_METHOD = {
     headers = 'check_header',
