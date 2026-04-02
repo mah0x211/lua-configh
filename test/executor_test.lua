@@ -413,3 +413,127 @@ function testcase.cppflags_env()
     setenv('CPPFLAGS', nil)
 end
 
+function testcase.set_incdirs()
+    local exec = executor('gcc')
+
+    -- test that set incdirs with a string
+    exec:set_incdirs('/usr/local/include')
+    assert.equal(#exec.incdirs, 1)
+    assert.equal(exec.incdirs[1], '/usr/local/include')
+
+    -- test that set incdirs with a string array
+    exec:set_incdirs({
+        '/usr/local/include',
+        '/opt/include',
+    })
+    assert.equal(#exec.incdirs, 2)
+    assert.equal(exec.incdirs[1], '/usr/local/include')
+    assert.equal(exec.incdirs[2], '/opt/include')
+
+    -- test that set_incdirs replaces the existing list
+    exec:set_incdirs({
+        '/new/path',
+    })
+    assert.equal(#exec.incdirs, 1)
+    assert.equal(exec.incdirs[1], '/new/path')
+
+    -- test that set_incdirs with empty array clears the list
+    exec:set_incdirs({})
+    assert.equal(#exec.incdirs, 0)
+
+    -- test that empty string and whitespace-only strings are ignored
+    exec:set_incdirs('')
+    assert.equal(#exec.incdirs, 0)
+    exec:set_incdirs({
+        '/a',
+        '',
+        '   ',
+        '/b',
+    })
+    assert.equal(#exec.incdirs, 2)
+    assert.equal(exec.incdirs[1], '/a')
+    assert.equal(exec.incdirs[2], '/b')
+
+    -- test that leading/trailing whitespace is trimmed
+    exec:set_incdirs('  /trimmed  ')
+    assert.equal(#exec.incdirs, 1)
+    assert.equal(exec.incdirs[1], '/trimmed')
+
+    -- test that throws an error if dirs is not string or table
+    local err = assert.throws(exec.set_incdirs, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of dirs is not string
+    err = assert.throws(exec.set_incdirs, exec, {
+        '/usr/local/include',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.add_incdirs()
+    local exec = executor('gcc')
+
+    -- test that add incdirs with a string
+    exec:add_incdirs('/usr/local/include')
+    assert.equal(#exec.incdirs, 1)
+    assert.equal(exec.incdirs[1], '/usr/local/include')
+
+    -- test that add incdirs with a string array appends to existing list
+    exec:add_incdirs({
+        '/opt/include',
+    })
+    assert.equal(#exec.incdirs, 2)
+    assert.equal(exec.incdirs[1], '/usr/local/include')
+    assert.equal(exec.incdirs[2], '/opt/include')
+
+    -- test that set_incdirs replaces all dirs including those added via add_incdirs
+    exec:set_incdirs({
+        '/new/path',
+    })
+    assert.equal(#exec.incdirs, 1)
+    assert.equal(exec.incdirs[1], '/new/path')
+
+    -- test that throws an error if dirs is not string or table
+    local err = assert.throws(exec.add_incdirs, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of dirs is not string
+    err = assert.throws(exec.add_incdirs, exec, {
+        '/usr/local/include',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.incdirs_functional()
+    local exec = executor('gcc')
+
+    -- create a unique temp directory with a custom header
+    local tmpbase = os.tmpname()
+    os.remove(tmpbase)
+    local tmpdir = tmpbase .. '_incdirs'
+    os.execute('mkdir -p ' .. tmpdir)
+    local hfile = assert(io.open(tmpdir .. '/configh_custom_test.h', 'w'))
+    hfile:write('/* configh test header */\n')
+    hfile:close()
+
+    -- test that check_header fails without incdirs set
+    local ok = exec:check_header('configh_custom_test.h')
+    assert.is_false(ok)
+
+    -- test that check_header succeeds after adding the dir
+    exec:add_incdirs(tmpdir)
+    ok = exec:check_header('configh_custom_test.h')
+    assert.is_true(ok)
+
+    -- test that check_header fails after clearing incdirs
+    exec:set_incdirs({})
+    ok = exec:check_header('configh_custom_test.h')
+    assert.is_false(ok)
+
+    -- cleanup
+    os.remove(tmpdir .. '/configh_custom_test.h')
+    os.execute('rmdir ' .. tmpdir)
+end
+

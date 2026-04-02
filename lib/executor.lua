@@ -37,6 +37,7 @@ local gcfn = require('gcfn')
 --- @field cc string
 --- @field features table<string, integer>|table<integer, string>
 --- @field cppflags string[]
+--- @field incdirs string[]
 --- @field buffile string
 --- @field buf file*
 local Executor = {}
@@ -60,6 +61,7 @@ function Executor:init(cc)
     self.cc = cc
     self.features = {}
     self.cppflags = {}
+    self.incdirs = {}
     self.buffile = assert(tmpname())
     self.buf = assert(open(self.buffile, 'r'))
     -- create new gcfn object
@@ -99,6 +101,21 @@ local function run_cmd(cmd)
     return res == true
 end
 
+--- flags_flatten joins an array of bare strings into a space-separated
+--- string, prepending prefix to each entry. Returns '' for empty arrays.
+--- @param arr string[]
+--- @param prefix? string
+--- @return string
+local function flags_flatten(arr, prefix)
+    assert(prefix == nil or type(prefix) == 'string',
+           'prefix must be string or nil')
+    if #arr == 0 then
+        return ''
+    end
+    prefix = prefix or ''
+    return prefix .. concat(arr, ' ' .. prefix)
+end
+
 --- preprocess runs the C preprocessor to check if headers can be included
 --- @param opts table  { headers: string|string[]|nil, code: string|nil }
 --- @return boolean ok
@@ -109,6 +126,7 @@ function Executor:preprocess(opts)
     local cmd = concat({
         self.cc,
         concat(self.cppflags, ' '),
+        flags_flatten(self.incdirs, '-I'),
         '-E',
         srcfile,
         '-o /dev/null',
@@ -133,6 +151,7 @@ function Executor:compile(opts)
     local cmd = concat({
         self.cc,
         concat(self.cppflags, ' '),
+        flags_flatten(self.incdirs, '-I'),
         '-fsyntax-only',
         srcfile,
         '2>',
@@ -157,6 +176,7 @@ function Executor:link(opts)
     local cmd = concat({
         self.cc,
         concat(self.cppflags, ' '),
+        flags_flatten(self.incdirs, '-I'),
         '-o',
         outfile,
         srcfile,
@@ -306,6 +326,18 @@ end
 --- @param flags string|string[]
 function Executor:set_cppflags(flags)
     self.cppflags = add_flags({}, flags)
+end
+
+--- add_incdirs append include directories to the existing list
+--- @param dirs string|string[]
+function Executor:add_incdirs(dirs)
+    add_flags(self.incdirs, dirs)
+end
+
+--- set_incdirs set include directories, replacing any previously set dirs
+--- @param dirs string|string[]
+function Executor:set_incdirs(dirs)
+    self.incdirs = add_flags({}, dirs)
 end
 
 --- check_header check the header is available

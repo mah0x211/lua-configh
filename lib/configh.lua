@@ -180,6 +180,18 @@ function Configh:add_cppflags(flags)
     self.exec:add_cppflags(flags)
 end
 
+--- set_incdirs set include directories, replacing any previously set dirs
+--- @param dirs string|string[]
+function Configh:set_incdirs(dirs)
+    self.exec:set_incdirs(dirs)
+end
+
+--- add_incdirs append include directories to the existing list
+--- @param dirs string|string[]
+function Configh:add_incdirs(dirs)
+    self.exec:add_incdirs(dirs)
+end
+
 -- Maps target name to the corresponding executor method name.
 local EXEC_METHOD = {
     headers = 'check_header',

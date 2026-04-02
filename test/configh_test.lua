@@ -199,6 +199,43 @@ function testcase.add_cppflags()
     assert.equal(cfgh.exec.cppflags[3], '-DDEBUG')
 end
 
+function testcase.set_incdirs()
+    local cfgh = configh('gcc')
+
+    -- test that set incdirs with a string
+    cfgh:set_incdirs('/usr/local/include')
+    assert.equal(#cfgh.exec.incdirs, 1)
+    assert.equal(cfgh.exec.incdirs[1], '/usr/local/include')
+
+    -- test that set incdirs with a string array
+    cfgh:set_incdirs({
+        '/usr/local/include',
+        '/opt/include',
+    })
+    assert.equal(#cfgh.exec.incdirs, 2)
+
+    -- test that set_incdirs replaces the list
+    cfgh:set_incdirs({
+        '/new/path',
+    })
+    assert.equal(#cfgh.exec.incdirs, 1)
+    assert.equal(cfgh.exec.incdirs[1], '/new/path')
+end
+
+function testcase.add_incdirs()
+    local cfgh = configh('gcc')
+
+    -- test that add_incdirs appends to the existing list
+    cfgh:add_incdirs('/usr/local/include')
+    assert.equal(#cfgh.exec.incdirs, 1)
+    cfgh:add_incdirs({
+        '/opt/include',
+    })
+    assert.equal(#cfgh.exec.incdirs, 2)
+    assert.equal(cfgh.exec.incdirs[1], '/usr/local/include')
+    assert.equal(cfgh.exec.incdirs[2], '/opt/include')
+end
+
 function testcase.flush()
     local cfgh = configh('gcc')
     cfgh:set_feature('_GNU_SOURCE')
