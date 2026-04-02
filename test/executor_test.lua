@@ -290,6 +290,24 @@ function testcase.set_cppflags()
     exec:set_cppflags({})
     assert.equal(#exec.cppflags, 0)
 
+    -- test that empty string and whitespace-only strings are ignored
+    exec:set_cppflags('')
+    assert.equal(#exec.cppflags, 0)
+    exec:set_cppflags({
+        '-DFOO',
+        '',
+        '   ',
+        '-DBAR',
+    })
+    assert.equal(#exec.cppflags, 2)
+    assert.equal(exec.cppflags[1], '-DFOO')
+    assert.equal(exec.cppflags[2], '-DBAR')
+
+    -- test that leading/trailing whitespace is trimmed
+    exec:set_cppflags('  -DTRIMMED  ')
+    assert.equal(#exec.cppflags, 1)
+    assert.equal(exec.cppflags[1], '-DTRIMMED')
+
     -- test that throws an error if flags is not string or table
     local err = assert.throws(exec.set_cppflags, exec, 123)
     assert.match(err, 'flags must be a string or string[]')

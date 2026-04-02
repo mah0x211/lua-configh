@@ -274,18 +274,24 @@ end
 local function add_flags(arr, flags)
     assert(type(arr) == 'table', 'arr must be a table')
     if type(flags) == 'string' then
-        arr[#arr + 1] = flags
+        local trimmed = flags:match('^%s*(.-)%s*$')
+        if trimmed ~= '' then
+            arr[#arr + 1] = trimmed
+        end
         return arr
     elseif type(flags) ~= 'table' then
         error('flags must be a string or string[]')
     end
 
-    -- validate and append flags to array
+    -- validate and append flags to array, skipping empty strings
     for i, v in ipairs(flags) do
         if type(v) ~= 'string' then
             error(format('flags#%d must be a string', i))
         end
-        arr[#arr + 1] = v
+        local trimmed = v:match('^%s*(.-)%s*$')
+        if trimmed ~= '' then
+            arr[#arr + 1] = trimmed
+        end
     end
     return arr
 end
