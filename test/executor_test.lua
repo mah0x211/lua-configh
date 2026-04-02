@@ -755,3 +755,95 @@ function testcase.add_libdirs()
     assert.match(err, 'flags#2 must be a string')
 end
 
+function testcase.set_libs()
+    local exec = executor('gcc')
+
+    -- test that set libs with a string
+    exec:set_libs('z')
+    assert.equal(#exec.libs, 1)
+    assert.equal(exec.libs[1], 'z')
+
+    -- test that set libs with a string array
+    exec:set_libs({
+        'z',
+        'm',
+    })
+    assert.equal(#exec.libs, 2)
+    assert.equal(exec.libs[1], 'z')
+    assert.equal(exec.libs[2], 'm')
+
+    -- test that set_libs replaces the existing list
+    exec:set_libs({
+        'ssl',
+    })
+    assert.equal(#exec.libs, 1)
+    assert.equal(exec.libs[1], 'ssl')
+
+    -- test that set_libs with empty array clears the list
+    exec:set_libs({})
+    assert.equal(#exec.libs, 0)
+
+    -- test that empty string and whitespace-only strings are ignored
+    exec:set_libs('')
+    assert.equal(#exec.libs, 0)
+    exec:set_libs({
+        'a',
+        '',
+        '   ',
+        'b',
+    })
+    assert.equal(#exec.libs, 2)
+    assert.equal(exec.libs[1], 'a')
+    assert.equal(exec.libs[2], 'b')
+
+    -- test that leading/trailing whitespace is trimmed
+    exec:set_libs('  crypto  ')
+    assert.equal(#exec.libs, 1)
+    assert.equal(exec.libs[1], 'crypto')
+
+    -- test that throws an error if libs is not string or table
+    local err = assert.throws(exec.set_libs, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of libs is not string
+    err = assert.throws(exec.set_libs, exec, {
+        'z',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.add_libs()
+    local exec = executor('gcc')
+
+    -- test that add libs with a string
+    exec:add_libs('z')
+    assert.equal(#exec.libs, 1)
+    assert.equal(exec.libs[1], 'z')
+
+    -- test that add libs with a string array appends to existing list
+    exec:add_libs({
+        'm',
+    })
+    assert.equal(#exec.libs, 2)
+    assert.equal(exec.libs[1], 'z')
+    assert.equal(exec.libs[2], 'm')
+
+    -- test that set_libs replaces all libs including those added via add_libs
+    exec:set_libs({
+        'ssl',
+    })
+    assert.equal(#exec.libs, 1)
+    assert.equal(exec.libs[1], 'ssl')
+
+    -- test that throws an error if libs is not string or table
+    local err = assert.throws(exec.add_libs, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of libs is not string
+    err = assert.throws(exec.add_libs, exec, {
+        'z',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end

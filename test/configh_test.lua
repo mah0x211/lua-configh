@@ -306,6 +306,39 @@ function testcase.add_libdirs()
     assert.equal(cfgh.exec.libdirs[2], '/opt/lib')
 end
 
+function testcase.set_libs()
+    local cfgh = configh('gcc')
+
+    cfgh:set_libs('z')
+    assert.equal(#cfgh.exec.libs, 1)
+    assert.equal(cfgh.exec.libs[1], 'z')
+
+    cfgh:set_libs({
+        'z',
+        'm',
+    })
+    assert.equal(#cfgh.exec.libs, 2)
+
+    cfgh:set_libs({
+        'ssl',
+    })
+    assert.equal(#cfgh.exec.libs, 1)
+    assert.equal(cfgh.exec.libs[1], 'ssl')
+end
+
+function testcase.add_libs()
+    local cfgh = configh('gcc')
+
+    cfgh:add_libs('z')
+    assert.equal(#cfgh.exec.libs, 1)
+    cfgh:add_libs({
+        'm',
+    })
+    assert.equal(#cfgh.exec.libs, 2)
+    assert.equal(cfgh.exec.libs[1], 'z')
+    assert.equal(cfgh.exec.libs[2], 'm')
+end
+
 function testcase.flush()
     local cfgh = configh('gcc')
     cfgh:set_feature('_GNU_SOURCE')

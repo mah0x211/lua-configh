@@ -40,6 +40,7 @@ local gcfn = require('gcfn')
 --- @field incdirs string[]
 --- @field cflags string[]
 --- @field libdirs string[]
+--- @field libs string[]
 --- @field buffile string
 --- @field buf file*
 local Executor = {}
@@ -66,6 +67,7 @@ function Executor:init(cc)
     self.incdirs = {}
     self.cflags = {}
     self.libdirs = {}
+    self.libs = {}
     self.buffile = assert(tmpname())
     self.buf = assert(open(self.buffile, 'r'))
     -- create new gcfn object
@@ -195,6 +197,7 @@ function Executor:link(opts)
         outfile,
         srcfile,
         flags_flatten(self.libdirs, '-L'),
+        flags_flatten(self.libs, '-l'),
         '2>',
         self.buffile,
     }, ' ')
@@ -377,6 +380,18 @@ end
 --- @param dirs string|string[]
 function Executor:set_libdirs(dirs)
     self.libdirs = add_flags({}, dirs)
+end
+
+--- add_libs append library names to the existing list
+--- @param libs string|string[]
+function Executor:add_libs(libs)
+    add_flags(self.libs, libs)
+end
+
+--- set_libs set library names, replacing any previously set names
+--- @param libs string|string[]
+function Executor:set_libs(libs)
+    self.libs = add_flags({}, libs)
 end
 
 --- check_header check the header is available

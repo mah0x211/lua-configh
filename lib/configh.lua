@@ -216,6 +216,18 @@ function Configh:add_libdirs(dirs)
     self.exec:add_libdirs(dirs)
 end
 
+--- set_libs set library names, replacing any previously set names
+--- @param libs string|string[]
+function Configh:set_libs(libs)
+    self.exec:set_libs(libs)
+end
+
+--- add_libs append library names to the existing list
+--- @param libs string|string[]
+function Configh:add_libs(libs)
+    self.exec:add_libs(libs)
+end
+
 -- Maps target name to the corresponding executor method name.
 local EXEC_METHOD = {
     headers = 'check_header',
