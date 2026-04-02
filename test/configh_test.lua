@@ -199,6 +199,179 @@ function testcase.add_cppflags()
     assert.equal(cfgh.exec.cppflags[3], '-DDEBUG')
 end
 
+function testcase.set_incdirs()
+    local cfgh = configh('gcc')
+
+    -- test that set incdirs with a string
+    cfgh:set_incdirs('/usr/local/include')
+    assert.equal(#cfgh.exec.incdirs, 1)
+    assert.equal(cfgh.exec.incdirs[1], '/usr/local/include')
+
+    -- test that set incdirs with a string array
+    cfgh:set_incdirs({
+        '/usr/local/include',
+        '/opt/include',
+    })
+    assert.equal(#cfgh.exec.incdirs, 2)
+
+    -- test that set_incdirs replaces the list
+    cfgh:set_incdirs({
+        '/new/path',
+    })
+    assert.equal(#cfgh.exec.incdirs, 1)
+    assert.equal(cfgh.exec.incdirs[1], '/new/path')
+end
+
+function testcase.add_incdirs()
+    local cfgh = configh('gcc')
+
+    -- test that add_incdirs appends to the existing list
+    cfgh:add_incdirs('/usr/local/include')
+    assert.equal(#cfgh.exec.incdirs, 1)
+    cfgh:add_incdirs({
+        '/opt/include',
+    })
+    assert.equal(#cfgh.exec.incdirs, 2)
+    assert.equal(cfgh.exec.incdirs[1], '/usr/local/include')
+    assert.equal(cfgh.exec.incdirs[2], '/opt/include')
+end
+
+function testcase.set_cflags()
+    local cfgh = configh('gcc')
+
+    -- test that set cflags with a string
+    cfgh:set_cflags('-O2')
+    assert.equal(#cfgh.exec.cflags, 1)
+    assert.equal(cfgh.exec.cflags[1], '-O2')
+
+    -- test that set cflags with a string array
+    cfgh:set_cflags({
+        '-O2',
+        '-Wall',
+    })
+    assert.equal(#cfgh.exec.cflags, 2)
+
+    -- test that set_cflags replaces the list
+    cfgh:set_cflags({
+        '-O0',
+    })
+    assert.equal(#cfgh.exec.cflags, 1)
+    assert.equal(cfgh.exec.cflags[1], '-O0')
+end
+
+function testcase.add_cflags()
+    local cfgh = configh('gcc')
+
+    -- test that add_cflags appends to the existing list
+    cfgh:add_cflags('-O2')
+    assert.equal(#cfgh.exec.cflags, 1)
+    cfgh:add_cflags({
+        '-Wall',
+    })
+    assert.equal(#cfgh.exec.cflags, 2)
+    assert.equal(cfgh.exec.cflags[1], '-O2')
+    assert.equal(cfgh.exec.cflags[2], '-Wall')
+end
+
+function testcase.set_libdirs()
+    local cfgh = configh('gcc')
+
+    cfgh:set_libdirs('/usr/local/lib')
+    assert.equal(#cfgh.exec.libdirs, 1)
+    assert.equal(cfgh.exec.libdirs[1], '/usr/local/lib')
+
+    cfgh:set_libdirs({
+        '/usr/local/lib',
+        '/opt/lib',
+    })
+    assert.equal(#cfgh.exec.libdirs, 2)
+
+    cfgh:set_libdirs({
+        '/new/lib',
+    })
+    assert.equal(#cfgh.exec.libdirs, 1)
+    assert.equal(cfgh.exec.libdirs[1], '/new/lib')
+end
+
+function testcase.add_libdirs()
+    local cfgh = configh('gcc')
+
+    cfgh:add_libdirs('/usr/local/lib')
+    assert.equal(#cfgh.exec.libdirs, 1)
+    cfgh:add_libdirs({
+        '/opt/lib',
+    })
+    assert.equal(#cfgh.exec.libdirs, 2)
+    assert.equal(cfgh.exec.libdirs[1], '/usr/local/lib')
+    assert.equal(cfgh.exec.libdirs[2], '/opt/lib')
+end
+
+function testcase.set_libs()
+    local cfgh = configh('gcc')
+
+    cfgh:set_libs('z')
+    assert.equal(#cfgh.exec.libs, 1)
+    assert.equal(cfgh.exec.libs[1], 'z')
+
+    cfgh:set_libs({
+        'z',
+        'm',
+    })
+    assert.equal(#cfgh.exec.libs, 2)
+
+    cfgh:set_libs({
+        'ssl',
+    })
+    assert.equal(#cfgh.exec.libs, 1)
+    assert.equal(cfgh.exec.libs[1], 'ssl')
+end
+
+function testcase.add_libs()
+    local cfgh = configh('gcc')
+
+    cfgh:add_libs('z')
+    assert.equal(#cfgh.exec.libs, 1)
+    cfgh:add_libs({
+        'm',
+    })
+    assert.equal(#cfgh.exec.libs, 2)
+    assert.equal(cfgh.exec.libs[1], 'z')
+    assert.equal(cfgh.exec.libs[2], 'm')
+end
+
+function testcase.set_ldflags()
+    local cfgh = configh('gcc')
+
+    cfgh:set_ldflags('-Wl,-rpath,/usr/local/lib')
+    assert.equal(#cfgh.exec.ldflags, 1)
+    assert.equal(cfgh.exec.ldflags[1], '-Wl,-rpath,/usr/local/lib')
+
+    cfgh:set_ldflags({
+        '-Wl,--as-needed',
+        '-static',
+    })
+    assert.equal(#cfgh.exec.ldflags, 2)
+
+    cfgh:set_ldflags({
+        '-Wl,-z,relro',
+    })
+    assert.equal(#cfgh.exec.ldflags, 1)
+    assert.equal(cfgh.exec.ldflags[1], '-Wl,-z,relro')
+end
+
+function testcase.add_ldflags()
+    local cfgh = configh('gcc')
+
+    cfgh:add_ldflags('-Wl,-rpath,/usr/local/lib')
+    assert.equal(#cfgh.exec.ldflags, 1)
+    cfgh:add_ldflags({
+        '-static',
+    })
+    assert.equal(#cfgh.exec.ldflags, 2)
+    assert.equal(cfgh.exec.ldflags[1], '-Wl,-rpath,/usr/local/lib')
+    assert.equal(cfgh.exec.ldflags[2], '-static')
+end
+
 function testcase.flush()
     local cfgh = configh('gcc')
     cfgh:set_feature('_GNU_SOURCE')

@@ -180,6 +180,66 @@ function Configh:add_cppflags(flags)
     self.exec:add_cppflags(flags)
 end
 
+--- set_incdirs set include directories, replacing any previously set dirs
+--- @param dirs string|string[]
+function Configh:set_incdirs(dirs)
+    self.exec:set_incdirs(dirs)
+end
+
+--- add_incdirs append include directories to the existing list
+--- @param dirs string|string[]
+function Configh:add_incdirs(dirs)
+    self.exec:add_incdirs(dirs)
+end
+
+--- set_cflags set cflags, replacing any previously set flags
+--- @param flags string|string[]
+function Configh:set_cflags(flags)
+    self.exec:set_cflags(flags)
+end
+
+--- add_cflags append cflags to the existing list
+--- @param flags string|string[]
+function Configh:add_cflags(flags)
+    self.exec:add_cflags(flags)
+end
+
+--- set_libdirs set library directories, replacing any previously set dirs
+--- @param dirs string|string[]
+function Configh:set_libdirs(dirs)
+    self.exec:set_libdirs(dirs)
+end
+
+--- add_libdirs append library directories to the existing list
+--- @param dirs string|string[]
+function Configh:add_libdirs(dirs)
+    self.exec:add_libdirs(dirs)
+end
+
+--- set_libs set library names, replacing any previously set names
+--- @param libs string|string[]
+function Configh:set_libs(libs)
+    self.exec:set_libs(libs)
+end
+
+--- add_libs append library names to the existing list
+--- @param libs string|string[]
+function Configh:add_libs(libs)
+    self.exec:add_libs(libs)
+end
+
+--- set_ldflags set ldflags, replacing any previously set flags
+--- @param flags string|string[]
+function Configh:set_ldflags(flags)
+    self.exec:set_ldflags(flags)
+end
+
+--- add_ldflags append ldflags to the existing list
+--- @param flags string|string[]
+function Configh:add_ldflags(flags)
+    self.exec:add_ldflags(flags)
+end
+
 -- Maps target name to the corresponding executor method name.
 local EXEC_METHOD = {
     headers = 'check_header',

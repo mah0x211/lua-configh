@@ -290,6 +290,24 @@ function testcase.set_cppflags()
     exec:set_cppflags({})
     assert.equal(#exec.cppflags, 0)
 
+    -- test that empty string and whitespace-only strings are ignored
+    exec:set_cppflags('')
+    assert.equal(#exec.cppflags, 0)
+    exec:set_cppflags({
+        '-DFOO',
+        '',
+        '   ',
+        '-DBAR',
+    })
+    assert.equal(#exec.cppflags, 2)
+    assert.equal(exec.cppflags[1], '-DFOO')
+    assert.equal(exec.cppflags[2], '-DBAR')
+
+    -- test that leading/trailing whitespace is trimmed
+    exec:set_cppflags('  -DTRIMMED  ')
+    assert.equal(#exec.cppflags, 1)
+    assert.equal(exec.cppflags[1], '-DTRIMMED')
+
     -- test that throws an error if flags is not string or table
     local err = assert.throws(exec.set_cppflags, exec, 123)
     assert.match(err, 'flags must be a string or string[]')
@@ -395,3 +413,558 @@ function testcase.cppflags_env()
     setenv('CPPFLAGS', nil)
 end
 
+function testcase.set_incdirs()
+    local exec = executor('gcc')
+
+    -- test that set incdirs with a string
+    exec:set_incdirs('/usr/local/include')
+    assert.equal(#exec.incdirs, 1)
+    assert.equal(exec.incdirs[1], '/usr/local/include')
+
+    -- test that set incdirs with a string array
+    exec:set_incdirs({
+        '/usr/local/include',
+        '/opt/include',
+    })
+    assert.equal(#exec.incdirs, 2)
+    assert.equal(exec.incdirs[1], '/usr/local/include')
+    assert.equal(exec.incdirs[2], '/opt/include')
+
+    -- test that set_incdirs replaces the existing list
+    exec:set_incdirs({
+        '/new/path',
+    })
+    assert.equal(#exec.incdirs, 1)
+    assert.equal(exec.incdirs[1], '/new/path')
+
+    -- test that set_incdirs with empty array clears the list
+    exec:set_incdirs({})
+    assert.equal(#exec.incdirs, 0)
+
+    -- test that empty string and whitespace-only strings are ignored
+    exec:set_incdirs('')
+    assert.equal(#exec.incdirs, 0)
+    exec:set_incdirs({
+        '/a',
+        '',
+        '   ',
+        '/b',
+    })
+    assert.equal(#exec.incdirs, 2)
+    assert.equal(exec.incdirs[1], '/a')
+    assert.equal(exec.incdirs[2], '/b')
+
+    -- test that leading/trailing whitespace is trimmed
+    exec:set_incdirs('  /trimmed  ')
+    assert.equal(#exec.incdirs, 1)
+    assert.equal(exec.incdirs[1], '/trimmed')
+
+    -- test that throws an error if dirs is not string or table
+    local err = assert.throws(exec.set_incdirs, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of dirs is not string
+    err = assert.throws(exec.set_incdirs, exec, {
+        '/usr/local/include',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.add_incdirs()
+    local exec = executor('gcc')
+
+    -- test that add incdirs with a string
+    exec:add_incdirs('/usr/local/include')
+    assert.equal(#exec.incdirs, 1)
+    assert.equal(exec.incdirs[1], '/usr/local/include')
+
+    -- test that add incdirs with a string array appends to existing list
+    exec:add_incdirs({
+        '/opt/include',
+    })
+    assert.equal(#exec.incdirs, 2)
+    assert.equal(exec.incdirs[1], '/usr/local/include')
+    assert.equal(exec.incdirs[2], '/opt/include')
+
+    -- test that set_incdirs replaces all dirs including those added via add_incdirs
+    exec:set_incdirs({
+        '/new/path',
+    })
+    assert.equal(#exec.incdirs, 1)
+    assert.equal(exec.incdirs[1], '/new/path')
+
+    -- test that throws an error if dirs is not string or table
+    local err = assert.throws(exec.add_incdirs, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of dirs is not string
+    err = assert.throws(exec.add_incdirs, exec, {
+        '/usr/local/include',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.incdirs_functional()
+    local exec = executor('gcc')
+
+    -- create a unique temp directory with a custom header
+    local tmpbase = os.tmpname()
+    os.remove(tmpbase)
+    local tmpdir = tmpbase .. '_incdirs'
+    os.execute('mkdir -p ' .. tmpdir)
+    local hfile = assert(io.open(tmpdir .. '/configh_custom_test.h', 'w'))
+    hfile:write('/* configh test header */\n')
+    hfile:close()
+
+    -- test that check_header fails without incdirs set
+    local ok = exec:check_header('configh_custom_test.h')
+    assert.is_false(ok)
+
+    -- test that check_header succeeds after adding the dir
+    exec:add_incdirs(tmpdir)
+    ok = exec:check_header('configh_custom_test.h')
+    assert.is_true(ok)
+
+    -- test that check_header fails after clearing incdirs
+    exec:set_incdirs({})
+    ok = exec:check_header('configh_custom_test.h')
+    assert.is_false(ok)
+
+    -- cleanup
+    os.remove(tmpdir .. '/configh_custom_test.h')
+    os.execute('rmdir ' .. tmpdir)
+end
+
+function testcase.set_cflags()
+    local exec = executor('gcc')
+
+    -- test that set cflags with a string
+    exec:set_cflags('-O2')
+    assert.equal(#exec.cflags, 1)
+    assert.equal(exec.cflags[1], '-O2')
+
+    -- test that set cflags with a string array
+    exec:set_cflags({
+        '-O2',
+        '-Wall',
+        '-Wextra',
+    })
+    assert.equal(#exec.cflags, 3)
+    assert.equal(exec.cflags[1], '-O2')
+    assert.equal(exec.cflags[2], '-Wall')
+    assert.equal(exec.cflags[3], '-Wextra')
+
+    -- test that set_cflags replaces the existing list
+    exec:set_cflags({
+        '-O0',
+    })
+    assert.equal(#exec.cflags, 1)
+    assert.equal(exec.cflags[1], '-O0')
+
+    -- test that set_cflags with empty array clears the list
+    exec:set_cflags({})
+    assert.equal(#exec.cflags, 0)
+
+    -- test that empty string and whitespace-only strings are ignored
+    exec:set_cflags('')
+    assert.equal(#exec.cflags, 0)
+    exec:set_cflags({
+        '-O2',
+        '',
+        '   ',
+        '-g',
+    })
+    assert.equal(#exec.cflags, 2)
+    assert.equal(exec.cflags[1], '-O2')
+    assert.equal(exec.cflags[2], '-g')
+
+    -- test that leading/trailing whitespace is trimmed
+    exec:set_cflags('  -O1  ')
+    assert.equal(#exec.cflags, 1)
+    assert.equal(exec.cflags[1], '-O1')
+
+    -- test that throws an error if flags is not string or table
+    local err = assert.throws(exec.set_cflags, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of flags is not string
+    err = assert.throws(exec.set_cflags, exec, {
+        '-O2',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.add_cflags()
+    local exec = executor('gcc')
+
+    -- test that add cflags with a string
+    exec:add_cflags('-O2')
+    assert.equal(#exec.cflags, 1)
+    assert.equal(exec.cflags[1], '-O2')
+
+    -- test that add cflags with a string array appends to existing list
+    exec:add_cflags({
+        '-Wall',
+        '-Wextra',
+    })
+    assert.equal(#exec.cflags, 3)
+    assert.equal(exec.cflags[1], '-O2')
+    assert.equal(exec.cflags[2], '-Wall')
+    assert.equal(exec.cflags[3], '-Wextra')
+
+    -- test that set_cflags replaces all flags including those added via add_cflags
+    exec:set_cflags({
+        '-O0',
+    })
+    assert.equal(#exec.cflags, 1)
+    assert.equal(exec.cflags[1], '-O0')
+
+    -- test that throws an error if flags is not string or table
+    local err = assert.throws(exec.add_cflags, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of flags is not string
+    err = assert.throws(exec.add_cflags, exec, {
+        '-O2',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.cflags_env()
+    -- test that load CFLAGS environment variable
+    setenv('CFLAGS', '-O2 -Wall')
+    local exec = executor('gcc')
+    assert.equal(#exec.cflags, 2)
+    assert.equal(exec.cflags[1], '-O2')
+    assert.equal(exec.cflags[2], '-Wall')
+
+    -- test that add_cflags appends to env-loaded flags
+    exec:add_cflags('-g')
+    assert.equal(#exec.cflags, 3)
+    assert.equal(exec.cflags[3], '-g')
+
+    -- test that set_cflags replaces env-loaded flags
+    exec:set_cflags({
+        '-O0',
+    })
+    assert.equal(#exec.cflags, 1)
+    assert.equal(exec.cflags[1], '-O0')
+    setenv('CFLAGS', nil)
+
+    -- test that CFLAGS environment variable is empty
+    setenv('CFLAGS', '')
+    exec = executor('gcc')
+    assert.equal(#exec.cflags, 0)
+    setenv('CFLAGS', nil)
+end
+
+function testcase.set_libdirs()
+    local exec = executor('gcc')
+
+    -- test that set libdirs with a string
+    exec:set_libdirs('/usr/local/lib')
+    assert.equal(#exec.libdirs, 1)
+    assert.equal(exec.libdirs[1], '/usr/local/lib')
+
+    -- test that set libdirs with a string array
+    exec:set_libdirs({
+        '/usr/local/lib',
+        '/opt/lib',
+    })
+    assert.equal(#exec.libdirs, 2)
+    assert.equal(exec.libdirs[1], '/usr/local/lib')
+    assert.equal(exec.libdirs[2], '/opt/lib')
+
+    -- test that set_libdirs replaces the existing list
+    exec:set_libdirs({
+        '/new/lib',
+    })
+    assert.equal(#exec.libdirs, 1)
+    assert.equal(exec.libdirs[1], '/new/lib')
+
+    -- test that set_libdirs with empty array clears the list
+    exec:set_libdirs({})
+    assert.equal(#exec.libdirs, 0)
+
+    -- test that empty string and whitespace-only strings are ignored
+    exec:set_libdirs('')
+    assert.equal(#exec.libdirs, 0)
+    exec:set_libdirs({
+        '/a',
+        '',
+        '   ',
+        '/b',
+    })
+    assert.equal(#exec.libdirs, 2)
+    assert.equal(exec.libdirs[1], '/a')
+    assert.equal(exec.libdirs[2], '/b')
+
+    -- test that leading/trailing whitespace is trimmed
+    exec:set_libdirs('  /trimmed  ')
+    assert.equal(#exec.libdirs, 1)
+    assert.equal(exec.libdirs[1], '/trimmed')
+
+    -- test that throws an error if dirs is not string or table
+    local err = assert.throws(exec.set_libdirs, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of dirs is not string
+    err = assert.throws(exec.set_libdirs, exec, {
+        '/usr/local/lib',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.add_libdirs()
+    local exec = executor('gcc')
+
+    -- test that add libdirs with a string
+    exec:add_libdirs('/usr/local/lib')
+    assert.equal(#exec.libdirs, 1)
+    assert.equal(exec.libdirs[1], '/usr/local/lib')
+
+    -- test that add libdirs with a string array appends to existing list
+    exec:add_libdirs({
+        '/opt/lib',
+    })
+    assert.equal(#exec.libdirs, 2)
+    assert.equal(exec.libdirs[1], '/usr/local/lib')
+    assert.equal(exec.libdirs[2], '/opt/lib')
+
+    -- test that set_libdirs replaces all dirs including those added via add_libdirs
+    exec:set_libdirs({
+        '/new/lib',
+    })
+    assert.equal(#exec.libdirs, 1)
+    assert.equal(exec.libdirs[1], '/new/lib')
+
+    -- test that throws an error if dirs is not string or table
+    local err = assert.throws(exec.add_libdirs, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of dirs is not string
+    err = assert.throws(exec.add_libdirs, exec, {
+        '/usr/local/lib',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.set_libs()
+    local exec = executor('gcc')
+
+    -- test that set libs with a string
+    exec:set_libs('z')
+    assert.equal(#exec.libs, 1)
+    assert.equal(exec.libs[1], 'z')
+
+    -- test that set libs with a string array
+    exec:set_libs({
+        'z',
+        'm',
+    })
+    assert.equal(#exec.libs, 2)
+    assert.equal(exec.libs[1], 'z')
+    assert.equal(exec.libs[2], 'm')
+
+    -- test that set_libs replaces the existing list
+    exec:set_libs({
+        'ssl',
+    })
+    assert.equal(#exec.libs, 1)
+    assert.equal(exec.libs[1], 'ssl')
+
+    -- test that set_libs with empty array clears the list
+    exec:set_libs({})
+    assert.equal(#exec.libs, 0)
+
+    -- test that empty string and whitespace-only strings are ignored
+    exec:set_libs('')
+    assert.equal(#exec.libs, 0)
+    exec:set_libs({
+        'a',
+        '',
+        '   ',
+        'b',
+    })
+    assert.equal(#exec.libs, 2)
+    assert.equal(exec.libs[1], 'a')
+    assert.equal(exec.libs[2], 'b')
+
+    -- test that leading/trailing whitespace is trimmed
+    exec:set_libs('  crypto  ')
+    assert.equal(#exec.libs, 1)
+    assert.equal(exec.libs[1], 'crypto')
+
+    -- test that throws an error if libs is not string or table
+    local err = assert.throws(exec.set_libs, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of libs is not string
+    err = assert.throws(exec.set_libs, exec, {
+        'z',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.add_libs()
+    local exec = executor('gcc')
+
+    -- test that add libs with a string
+    exec:add_libs('z')
+    assert.equal(#exec.libs, 1)
+    assert.equal(exec.libs[1], 'z')
+
+    -- test that add libs with a string array appends to existing list
+    exec:add_libs({
+        'm',
+    })
+    assert.equal(#exec.libs, 2)
+    assert.equal(exec.libs[1], 'z')
+    assert.equal(exec.libs[2], 'm')
+
+    -- test that set_libs replaces all libs including those added via add_libs
+    exec:set_libs({
+        'ssl',
+    })
+    assert.equal(#exec.libs, 1)
+    assert.equal(exec.libs[1], 'ssl')
+
+    -- test that throws an error if libs is not string or table
+    local err = assert.throws(exec.add_libs, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of libs is not string
+    err = assert.throws(exec.add_libs, exec, {
+        'z',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.set_ldflags()
+    local exec = executor('gcc')
+
+    -- test that set ldflags with a string
+    exec:set_ldflags('-Wl,-rpath,/usr/local/lib')
+    assert.equal(#exec.ldflags, 1)
+    assert.equal(exec.ldflags[1], '-Wl,-rpath,/usr/local/lib')
+
+    -- test that set ldflags with a string array
+    exec:set_ldflags({
+        '-Wl,--as-needed',
+        '-static',
+    })
+    assert.equal(#exec.ldflags, 2)
+    assert.equal(exec.ldflags[1], '-Wl,--as-needed')
+    assert.equal(exec.ldflags[2], '-static')
+
+    -- test that set_ldflags replaces the existing list
+    exec:set_ldflags({
+        '-Wl,-z,relro',
+    })
+    assert.equal(#exec.ldflags, 1)
+    assert.equal(exec.ldflags[1], '-Wl,-z,relro')
+
+    -- test that set_ldflags with empty array clears the list
+    exec:set_ldflags({})
+    assert.equal(#exec.ldflags, 0)
+
+    -- test that empty string and whitespace-only strings are ignored
+    exec:set_ldflags('')
+    assert.equal(#exec.ldflags, 0)
+    exec:set_ldflags({
+        '-Wl,-a',
+        '',
+        '   ',
+        '-Wl,-b',
+    })
+    assert.equal(#exec.ldflags, 2)
+    assert.equal(exec.ldflags[1], '-Wl,-a')
+    assert.equal(exec.ldflags[2], '-Wl,-b')
+
+    -- test that leading/trailing whitespace is trimmed
+    exec:set_ldflags('  -static  ')
+    assert.equal(#exec.ldflags, 1)
+    assert.equal(exec.ldflags[1], '-static')
+
+    -- test that throws an error if flags is not string or table
+    local err = assert.throws(exec.set_ldflags, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of flags is not string
+    err = assert.throws(exec.set_ldflags, exec, {
+        '-Wl,-rpath,/a',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.add_ldflags()
+    local exec = executor('gcc')
+
+    -- test that add ldflags with a string
+    exec:add_ldflags('-Wl,-rpath,/usr/local/lib')
+    assert.equal(#exec.ldflags, 1)
+    assert.equal(exec.ldflags[1], '-Wl,-rpath,/usr/local/lib')
+
+    -- test that add ldflags with a string array appends to existing list
+    exec:add_ldflags({
+        '-static',
+    })
+    assert.equal(#exec.ldflags, 2)
+    assert.equal(exec.ldflags[1], '-Wl,-rpath,/usr/local/lib')
+    assert.equal(exec.ldflags[2], '-static')
+
+    -- test that set_ldflags replaces all flags including those added via add_ldflags
+    exec:set_ldflags({
+        '-Wl,-z,relro',
+    })
+    assert.equal(#exec.ldflags, 1)
+    assert.equal(exec.ldflags[1], '-Wl,-z,relro')
+
+    -- test that throws an error if flags is not string or table
+    local err = assert.throws(exec.add_ldflags, exec, 123)
+    assert.match(err, 'flags must be a string or string[]')
+
+    -- test that throws an error if an element of flags is not string
+    err = assert.throws(exec.add_ldflags, exec, {
+        '-Wl,-rpath,/a',
+        123,
+    })
+    assert.match(err, 'flags#2 must be a string')
+end
+
+function testcase.ldflags_env()
+    -- test that LDFLAGS environment variable is read into ldflags on init
+    setenv('LDFLAGS', '-Wl,-rpath,/usr/local/lib -static')
+    local exec = executor('gcc')
+    assert.equal(#exec.ldflags, 2)
+    assert.equal(exec.ldflags[1], '-Wl,-rpath,/usr/local/lib')
+    assert.equal(exec.ldflags[2], '-static')
+
+    -- test that add_ldflags appends to env-loaded flags
+    exec:add_ldflags('-Wl,--as-needed')
+    assert.equal(#exec.ldflags, 3)
+    assert.equal(exec.ldflags[3], '-Wl,--as-needed')
+
+    -- test that set_ldflags replaces env-loaded flags
+    exec:set_ldflags({
+        '-Wl,-z,relro',
+    })
+    assert.equal(#exec.ldflags, 1)
+    assert.equal(exec.ldflags[1], '-Wl,-z,relro')
+    setenv('LDFLAGS', nil)
+
+    -- test that LDFLAGS environment variable is empty
+    setenv('LDFLAGS', '')
+    exec = executor('gcc')
+    assert.equal(#exec.ldflags, 0)
+    setenv('LDFLAGS', nil)
+end

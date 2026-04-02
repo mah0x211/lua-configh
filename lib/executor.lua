@@ -37,11 +37,29 @@ local gcfn = require('gcfn')
 --- @field cc string
 --- @field features table<string, integer>|table<integer, string>
 --- @field cppflags string[]
+--- @field incdirs string[]
+--- @field cflags string[]
+--- @field libdirs string[]
+--- @field libs string[]
+--- @field ldflags string[]
 --- @field buffile string
 --- @field buf file*
 local Executor = {}
 
 local LUA_VERSION = tonumber(_VERSION:match('Lua (%d+%.%d+)'))
+
+--- load_env_flags reads space-separated flags from an environment variable
+--- into the given array.
+--- @param arr string[]
+--- @param name string
+local function load_env_flags(arr, name)
+    local s = getenv(name)
+    if s then
+        for flag in s:gmatch('%S+') do
+            arr[#arr + 1] = flag
+        end
+    end
+end
 
 --- new create a new configh.executor object
 --- @param cc string?
@@ -60,6 +78,11 @@ function Executor:init(cc)
     self.cc = cc
     self.features = {}
     self.cppflags = {}
+    self.incdirs = {}
+    self.cflags = {}
+    self.libdirs = {}
+    self.libs = {}
+    self.ldflags = {}
     self.buffile = assert(tmpname())
     self.buf = assert(open(self.buffile, 'r'))
     -- create new gcfn object
@@ -67,13 +90,10 @@ function Executor:init(cc)
         remove(pathname)
     end, self.buffile)
 
-    -- load CPPFLAGS environment variable
-    local cppflags_str = getenv('CPPFLAGS')
-    if cppflags_str then
-        for flag in cppflags_str:gmatch('%S+') do
-            self.cppflags[#self.cppflags + 1] = flag
-        end
-    end
+    -- load environment variables for flag fields
+    load_env_flags(self.cppflags, 'CPPFLAGS')
+    load_env_flags(self.cflags, 'CFLAGS')
+    load_env_flags(self.ldflags, 'LDFLAGS')
 
     return self
 end
@@ -99,6 +119,21 @@ local function run_cmd(cmd)
     return res == true
 end
 
+--- flags_flatten joins an array of bare strings into a space-separated
+--- string, prepending prefix to each entry. Returns '' for empty arrays.
+--- @param arr string[]
+--- @param prefix? string
+--- @return string
+local function flags_flatten(arr, prefix)
+    assert(prefix == nil or type(prefix) == 'string',
+           'prefix must be string or nil')
+    if #arr == 0 then
+        return ''
+    end
+    prefix = prefix or ''
+    return prefix .. concat(arr, ' ' .. prefix)
+end
+
 --- preprocess runs the C preprocessor to check if headers can be included
 --- @param opts table  { headers: string|string[]|nil, code: string|nil }
 --- @return boolean ok
@@ -109,6 +144,7 @@ function Executor:preprocess(opts)
     local cmd = concat({
         self.cc,
         concat(self.cppflags, ' '),
+        flags_flatten(self.incdirs, '-I'),
         '-E',
         srcfile,
         '-o /dev/null',
@@ -133,6 +169,8 @@ function Executor:compile(opts)
     local cmd = concat({
         self.cc,
         concat(self.cppflags, ' '),
+        flags_flatten(self.incdirs, '-I'),
+        concat(self.cflags, ' '),
         '-fsyntax-only',
         srcfile,
         '2>',
@@ -157,9 +195,14 @@ function Executor:link(opts)
     local cmd = concat({
         self.cc,
         concat(self.cppflags, ' '),
+        flags_flatten(self.incdirs, '-I'),
+        concat(self.cflags, ' '),
         '-o',
         outfile,
         srcfile,
+        concat(self.ldflags, ' '),
+        flags_flatten(self.libdirs, '-L'),
+        flags_flatten(self.libs, '-l'),
         '2>',
         self.buffile,
     }, ' ')
@@ -274,18 +317,24 @@ end
 local function add_flags(arr, flags)
     assert(type(arr) == 'table', 'arr must be a table')
     if type(flags) == 'string' then
-        arr[#arr + 1] = flags
+        local trimmed = flags:match('^%s*(.-)%s*$')
+        if trimmed ~= '' then
+            arr[#arr + 1] = trimmed
+        end
         return arr
     elseif type(flags) ~= 'table' then
         error('flags must be a string or string[]')
     end
 
-    -- validate and append flags to array
+    -- validate and append flags to array, skipping empty strings
     for i, v in ipairs(flags) do
         if type(v) ~= 'string' then
             error(format('flags#%d must be a string', i))
         end
-        arr[#arr + 1] = v
+        local trimmed = v:match('^%s*(.-)%s*$')
+        if trimmed ~= '' then
+            arr[#arr + 1] = trimmed
+        end
     end
     return arr
 end
@@ -300,6 +349,66 @@ end
 --- @param flags string|string[]
 function Executor:set_cppflags(flags)
     self.cppflags = add_flags({}, flags)
+end
+
+--- add_incdirs append include directories to the existing list
+--- @param dirs string|string[]
+function Executor:add_incdirs(dirs)
+    add_flags(self.incdirs, dirs)
+end
+
+--- set_incdirs set include directories, replacing any previously set dirs
+--- @param dirs string|string[]
+function Executor:set_incdirs(dirs)
+    self.incdirs = add_flags({}, dirs)
+end
+
+--- add_cflags append cflags to the existing list
+--- @param flags string|string[]
+function Executor:add_cflags(flags)
+    add_flags(self.cflags, flags)
+end
+
+--- set_cflags set cflags, replacing any previously set flags
+--- @param flags string|string[]
+function Executor:set_cflags(flags)
+    self.cflags = add_flags({}, flags)
+end
+
+--- add_libdirs append library directories to the existing list
+--- @param dirs string|string[]
+function Executor:add_libdirs(dirs)
+    add_flags(self.libdirs, dirs)
+end
+
+--- set_libdirs set library directories, replacing any previously set dirs
+--- @param dirs string|string[]
+function Executor:set_libdirs(dirs)
+    self.libdirs = add_flags({}, dirs)
+end
+
+--- add_libs append library names to the existing list
+--- @param libs string|string[]
+function Executor:add_libs(libs)
+    add_flags(self.libs, libs)
+end
+
+--- set_libs set library names, replacing any previously set names
+--- @param libs string|string[]
+function Executor:set_libs(libs)
+    self.libs = add_flags({}, libs)
+end
+
+--- add_ldflags append ldflags to the existing list
+--- @param flags string|string[]
+function Executor:add_ldflags(flags)
+    add_flags(self.ldflags, flags)
+end
+
+--- set_ldflags set ldflags, replacing any previously set flags
+--- @param flags string|string[]
+function Executor:set_ldflags(flags)
+    self.ldflags = add_flags({}, flags)
 end
 
 --- check_header check the header is available
