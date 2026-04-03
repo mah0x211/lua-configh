@@ -159,8 +159,14 @@ function Executor:preprocess(opts)
     return false, read_error(self)
 end
 
---- compile runs the compiler in syntax-only mode to check declarations
---- @param opts table  { headers: string|string[]|nil, code: string|nil }
+--- compile runs the compiler to check declarations.
+--- Without opts.outfile it uses -fsyntax-only (no output file).
+--- With opts.outfile it compiles to an object file with -c.
+--- opts fields:
+---   headers  string|string[]|nil  include headers
+---   code     string?              code placed inside main()
+---   outfile  string?              path for the produced .o; enables -c mode
+--- @param opts table
 --- @return boolean ok
 --- @return string? err
 function Executor:compile(opts)
@@ -171,7 +177,7 @@ function Executor:compile(opts)
         concat(self.cppflags, ' '),
         flags_flatten(self.incdirs, '-I'),
         concat(self.cflags, ' '),
-        '-fsyntax-only',
+        not opts.outfile and '-fsyntax-only' or '-c -o ' .. opts.outfile,
         srcfile,
         '2>',
         self.buffile,
@@ -181,11 +187,17 @@ function Executor:compile(opts)
     if ok then
         return true
     end
+    if opts.outfile then
+        remove(opts.outfile)
+    end
     return false, read_error(self)
 end
 
 --- link compiles and links to verify a symbol exists in the current libraries
---- @param opts table  { headers: string|string[]|nil, code: string|nil }
+--- opts fields:
+---   headers  string|string[]|nil  include headers
+---   code     string?              code placed inside main()
+--- @param opts table
 --- @return boolean ok
 --- @return string? err
 function Executor:link(opts)
@@ -240,10 +252,7 @@ function Executor:makecsrc(headers, code)
     headers = concat(includes, '\n')
 
     -- check code
-    if code ~= nil then
-        assert(type(code) == 'string', 'code must be a string or nil')
-        code = code .. ';'
-    end
+    assert(code == nil or type(code) == 'string', 'code must be a string or nil')
 
     -- feature macros
     local features = concat(self.features, '\n')
@@ -430,7 +439,7 @@ function Executor:check_func(headers, func)
     assert(type(func) == 'string', 'func must be a string')
     return self:link({
         headers = headers,
-        code = format('void (*function_pointer)(void) = (void (*)(void))%s',
+        code = format('void (*function_pointer)(void) = (void (*)(void))%s;',
                       func),
     })
 end
@@ -444,7 +453,7 @@ function Executor:check_type(headers, ctype)
     assert(type(ctype) == 'string', 'type must be a string')
     return self:compile({
         headers = headers,
-        code = format('%s x', ctype),
+        code = format('%s x;', ctype),
     })
 end
 
@@ -472,8 +481,90 @@ function Executor:check_member(headers, ctype, member)
     assert(type(member) == 'string', 'member must be a string')
     return self:compile({
         headers = headers,
-        code = format('%s x; (void)x.%s', ctype, member),
+        code = format('%s x; (void)x.%s;', ctype, member),
     })
+end
+
+--- check_sizeof determines the size of a C type by embedding sizeof() as
+--- explicit big-endian bytes in a global array within the compiled object
+--- file, then scanning the binary to extract the value.  The per-call
+--- unique objfile path is used as the signature, so false matches against
+--- any content from user-specified headers cannot occur.
+--- @param headers string|string[]|nil
+--- @param ctype string
+--- @return boolean ok
+--- @return string? err
+--- @return integer? size  the sizeof(ctype), or nil if undetermined
+function Executor:check_sizeof(headers, ctype)
+    assert(type(ctype) == 'string', 'ctype must be a string')
+
+    local objfile = tmpname() .. '.o'
+    -- Encode the unique objfile path as decimal byte values so it can be
+    -- used as the signature inside the C initializer without quoting issues.
+    -- The reversed path is used as the end marker so that size=0 can be
+    -- distinguished from "signature not found".
+    local sig = objfile
+    local sig_end = sig:reverse()
+    local sig_c, sig_end_c = {}, {}
+    for i = 1, #sig do
+        sig_c[i] = sig:byte(i)
+        sig_end_c[i] = sig_end:byte(i)
+    end
+
+    -- Cast to unsigned long long before shifting to avoid UB on 32-bit
+    -- targets where sizeof(T) may be a 32-bit size_t.
+    local varname = 'configh_sizeof_' .. ctype:gsub('[^%w]', '_')
+    local code = ([[
+static unsigned char $VARNAME[] = {
+    $SIG,
+    (unsigned char)(((unsigned long long)sizeof($CTYPE) >> 56) & 0xFF),
+    (unsigned char)(((unsigned long long)sizeof($CTYPE) >> 48) & 0xFF),
+    (unsigned char)(((unsigned long long)sizeof($CTYPE) >> 40) & 0xFF),
+    (unsigned char)(((unsigned long long)sizeof($CTYPE) >> 32) & 0xFF),
+    (unsigned char)(((unsigned long long)sizeof($CTYPE) >> 24) & 0xFF),
+    (unsigned char)(((unsigned long long)sizeof($CTYPE) >> 16) & 0xFF),
+    (unsigned char)(((unsigned long long)sizeof($CTYPE) >>  8) & 0xFF),
+    (unsigned char)(((unsigned long long)sizeof($CTYPE) >>  0) & 0xFF),
+    $SIG_END
+};
+return (int)((char*)&$VARNAME - (char*)0);]]):gsub('%$([A-Z_]+)', {
+        VARNAME = varname,
+        SIG = concat(sig_c, ','),
+        SIG_END = concat(sig_end_c, ','),
+        CTYPE = ctype,
+    })
+
+    local ok, err = self:compile({
+        headers = headers,
+        code = code,
+        outfile = objfile,
+    })
+    if not ok then
+        return false, err
+    end
+
+    -- read object binary and locate the size bytes between the two signatures
+    local bf = assert(open(objfile, 'rb'))
+    local data = assert(bf:read('*a'))
+    bf:close()
+    remove(objfile)
+
+    -- search for the signature and verify the end marker follows the size bytes
+    local pos = data:find(sig, 1, true)
+    if not pos then
+        return false, format('unable to determine sizeof(%s)', ctype)
+    end
+    local size_start = pos + #sig
+    if data:sub(size_start + 8, size_start + 7 + #sig_end) ~= sig_end then
+        return false, format('unable to determine sizeof(%s)', ctype)
+    end
+
+    -- the 8 bytes between the two signatures are the size in big-endian order
+    local size = 0
+    for i = 0, 7 do
+        size = size * 256 + data:byte(size_start + i)
+    end
+    return true, nil, size
 end
 
 Executor = require('metamodule').new(Executor)

@@ -146,6 +146,45 @@ function testcase.check_decl()
     assert.equal(cfgh.inspected.decls['UNKNOWN_CONSTANT'].is_exists, false)
 end
 
+function testcase.check_sizeof()
+    local cfgh = configh('gcc')
+
+    -- test that returns true for a known type
+    local ok, err = cfgh:check_sizeof(nil, 'char')
+    assert.is_true(ok)
+    assert.is_nil(err)
+    -- confirm that the entry is recorded in inspected.sizeof keyed by type name
+    local entry = cfgh.inspected.sizeof['char']
+    assert.not_nil(entry)
+    assert.equal(entry.is_exists, true)
+    assert.equal(entry.size, 1)
+
+    -- test that records the correct size for size_t with header
+    ok, err = cfgh:check_sizeof('stddef.h', 'size_t')
+    assert.is_true(ok)
+    assert.is_nil(err)
+    local size_t_entry = cfgh.inspected.sizeof['size_t']
+    assert.not_nil(size_t_entry)
+    assert.is_true(size_t_entry.size > 0)
+
+    -- test that dedup: calling twice returns the same entry
+    local entry_first = cfgh.inspected.sizeof['char']
+    cfgh:check_sizeof(nil, 'char')
+    assert.equal(cfgh.inspected.sizeof['char'], entry_first)
+
+    -- test that returns false for an unknown type
+    ok, err = cfgh:check_sizeof(nil, 'no_such_type_t')
+    assert.is_false(ok)
+    assert.is_string(err)
+    local unknown_entry = cfgh.inspected.sizeof['no_such_type_t']
+    assert.not_nil(unknown_entry)
+    assert.equal(unknown_entry.is_exists, false)
+
+    -- test that throws an error if ctype is not string
+    err = assert.throws(cfgh.check_sizeof, cfgh, nil, 123)
+    assert.match(err, 'ctype must be a string')
+end
+
 function testcase.output_status()
     local cfgh = configh('gcc')
     local stdout = assert(io.tmpfile())
@@ -377,6 +416,8 @@ function testcase.flush()
     cfgh:set_feature('_GNU_SOURCE')
     assert(cfgh:check_header('stdio.h'))
     assert(cfgh:check_func('stdio.h', 'printf'))
+    assert(cfgh:check_sizeof(nil, 'char'))
+    cfgh:check_sizeof(nil, 'no_such_type_t')
 
     -- test that check whether the function is available
     local ok, err = cfgh:flush('./test_config.h')
@@ -391,8 +432,9 @@ function testcase.flush()
         '\n#define _GNU_SOURCE\n',
         '\n#define HAVE_STDIO_H 1\n',
         '\n#define HAVE_PRINTF 1\n',
+        '\n#define SIZEOF_CHAR 1\n',
+        '\n/* #undef SIZEOF_NO_SUCH_TYPE_T */\n',
     }) do
-        assert.match(content, pattern)
         assert.match(content, pattern)
     end
 
