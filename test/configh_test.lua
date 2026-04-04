@@ -185,6 +185,49 @@ function testcase.check_sizeof()
     assert.match(err, 'name must be a string')
 end
 
+function testcase.check_func_with_library()
+    local cfgh = configh('gcc')
+
+    -- test that check_func with library records func entry with library field
+    local ok, err = cfgh:check_func({
+        'math.h',
+    }, 'sin', 'm')
+    assert.is_true(ok)
+    assert.is_nil(err)
+    -- confirm func entry has library field set
+    local func_entry = cfgh.inspected.funcs['sin']
+    assert.not_nil(func_entry)
+    assert.equal(func_entry.is_exists, true)
+    assert.equal(func_entry.library, 'm')
+    -- confirm dedup sentinel is registered
+    assert.equal(cfgh.inspected.libs['m'], true)
+
+    -- test that dedup: second probe with same library clears entry.library
+    cfgh:check_func({
+        'math.h',
+    }, 'cos', 'm')
+    local cos_entry = cfgh.inspected.funcs['cos']
+    assert.not_nil(cos_entry)
+    assert.is_nil(cos_entry.library)
+    -- dedup sentinel unchanged
+    assert.equal(cfgh.inspected.libs['m'], true)
+
+    -- test that returns false for a nonexistent library
+    ok, err = cfgh:check_func(nil, 'no_such_func_xyz',
+                              'no_such_lib_xyz_for_test')
+    assert.is_false(ok)
+    assert.is_string(err)
+    local bad_entry = cfgh.inspected.funcs['no_such_func_xyz']
+    assert.not_nil(bad_entry)
+    assert.equal(bad_entry.library, 'no_such_lib_xyz_for_test')
+
+    -- test that throws an error if library is not string or nil
+    err = assert.throws(cfgh.check_func, cfgh, {
+        'math.h',
+    }, 'sin', 123)
+    assert.match(err, 'library must be string or nil')
+end
+
 function testcase.output_status()
     local cfgh = configh('gcc')
     local stdout = assert(io.tmpfile())
@@ -418,6 +461,8 @@ function testcase.flush()
     assert(cfgh:check_func('stdio.h', 'printf'))
     assert(cfgh:check_sizeof(nil, 'char'))
     cfgh:check_sizeof(nil, 'no_such_type_t')
+    assert(cfgh:check_func('math.h', 'sin', 'm'))
+    cfgh:check_func(nil, 'no_such_func_xyz', 'no_such_lib_xyz_for_test')
 
     -- test that check whether the function is available
     local ok, err = cfgh:flush('./test_config.h')
@@ -434,6 +479,8 @@ function testcase.flush()
         '\n#define HAVE_PRINTF 1\n',
         '\n#define SIZEOF_CHAR 1\n',
         '\n/* #undef SIZEOF_NO_SUCH_TYPE_T */\n',
+        '\n#define HAVE_LIB_M 1\n',
+        '\n/* #undef HAVE_LIB_NO_SUCH_LIB_XYZ_FOR_TEST */\n',
     }) do
         assert.match(content, pattern)
     end
