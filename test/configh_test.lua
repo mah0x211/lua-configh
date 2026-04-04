@@ -83,7 +83,7 @@ function testcase.check_func()
     -- test that check whether the function is available
     local ok, err = cfgh:check_func('stdio.h', 'printf')
     assert(ok, err)
-    -- confirm that the entry is recorded in inspected.funcs keyed by fqname
+    -- confirm that the entry is recorded in inspected.funcs keyed by name
     assert.equal(cfgh.inspected.funcs['printf'].is_exists, true)
 
     -- test that probe without header includes returns false
@@ -99,7 +99,7 @@ function testcase.check_type()
     -- test that check whether the type is available
     local ok, err = cfgh:check_type('sys/socket.h', 'struct sockaddr_storage')
     assert(ok, err)
-    -- confirm that the entry is recorded in inspected.types keyed by fqname
+    -- confirm that the entry is recorded in inspected.types keyed by name
     assert.equal(cfgh.inspected.types['struct sockaddr_storage'].is_exists, true)
 
     -- test that probe without header includes returns false
@@ -116,7 +116,7 @@ function testcase.check_member()
     local ok, err = cfgh:check_member('sys/socket.h', 'struct sockaddr',
                                       'sa_family')
     assert(ok, err)
-    -- confirm that the entry is recorded in inspected.members keyed by fqname
+    -- confirm that the entry is recorded in inspected.members keyed by name
     assert.equal(cfgh.inspected.members['struct sockaddr.sa_family'].is_exists,
                  true)
 
@@ -136,7 +136,7 @@ function testcase.check_decl()
     -- test that check whether the macro constant is defined
     local ok, err = cfgh:check_decl('limits.h', 'PATH_MAX')
     assert(ok, err)
-    -- confirm that the entry is recorded in inspected.decls keyed by fqname
+    -- confirm that the entry is recorded in inspected.decls keyed by name
     assert.equal(cfgh.inspected.decls['PATH_MAX'].is_exists, true)
 
     -- test that add commented macro if the declaration is not available
@@ -180,9 +180,9 @@ function testcase.check_sizeof()
     assert.not_nil(unknown_entry)
     assert.equal(unknown_entry.is_exists, false)
 
-    -- test that throws an error if ctype is not string
+    -- test that throws an error if name is not string
     err = assert.throws(cfgh.check_sizeof, cfgh, nil, 123)
-    assert.match(err, 'ctype must be a string')
+    assert.match(err, 'name must be a string')
 end
 
 function testcase.output_status()
@@ -457,14 +457,12 @@ function testcase.inspected_mixed_table()
     local h = cfgh.inspected.headers['stdio.h']
     assert.equal(h, cfgh.inspected[1])
     assert.equal(h.target, 'headers')
-    assert.equal(h.declname, 'stdio.h')
-    assert.equal(h.order, 1)
+    assert.equal(h.name, 'stdio.h')
 
     local f = cfgh.inspected.funcs['printf']
     assert.equal(f, cfgh.inspected[2])
     assert.equal(f.target, 'funcs')
-    assert.equal(f.declname, 'printf')
-    assert.equal(f.order, 2)
+    assert.equal(f.name, 'printf')
 end
 
 function testcase.check_header_dedup()
@@ -473,7 +471,7 @@ function testcase.check_header_dedup()
     cfgh:check_header('stdio.h') -- re-probes and updates existing entry; no new integer entry
     assert.equal(#cfgh.inspected, 1)
 
-    -- check_func dedup: same fqname re-probes but adds no new integer entry
+    -- check_func dedup: same name re-probes but adds no new integer entry
     cfgh:check_func('stdio.h', 'printf')
     cfgh:check_func('stdio.h', 'printf') -- re-probe, no new entry
     assert.equal(#cfgh.inspected, 2)

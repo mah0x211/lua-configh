@@ -178,120 +178,178 @@ function testcase.check_header()
     local exec = executor('gcc')
 
     -- test that check whether the header is available
-    local ok, err = exec:check_header('stdio.h')
+    local ok, err = exec:check_header({
+        headers = 'stdio.h',
+    })
     assert.is_true(ok)
     assert.is_nil(err)
 
     -- test that return false if the header is not available
-    ok, err = exec:check_header('this_is_unknown_header_for_test.h')
+    ok, err = exec:check_header({
+        headers = 'this_is_unknown_header_for_test.h',
+    })
     assert.is_false(ok)
     assert.is_string(err)
 
-    -- test that throws an error if header argument is not string
-    err = assert.throws(exec.check_header, exec, 123)
-    assert.match(err, 'headers must be a string or string[]')
+    -- test that throws an error if params is not a table
+    err = assert.throws(exec.check_header, exec, 'stdio.h')
+    assert.match(err, 'params must be a table')
 
-    -- test that throws an error if headers contains non-string value
+    -- test that throws an error if params.headers is not string
     err = assert.throws(exec.check_header, exec, {
-        'stdio.h',
-        123,
+        headers = 123,
     })
-    assert.match(err, 'headers#2 must be a string')
+    assert.match(err, 'params.headers must be a string')
 end
 
 function testcase.check_func()
     local exec = executor('gcc')
 
     -- test that check whether the function is available
-    local ok, err = exec:check_func('stdio.h', 'printf')
+    local ok, err = exec:check_func({
+        headers = 'stdio.h',
+        name = 'printf',
+    })
     assert.is_true(ok)
     assert.is_nil(err)
 
-    -- test that return false if the function is not available
-    ok, err = exec:check_func(nil, 'printf')
+    -- test that return false if the function is not available (no headers)
+    ok, err = exec:check_func({
+        name = 'printf',
+    })
     assert.is_false(ok)
     assert.is_string(err)
 
-    -- test that throws an error if func argument is not string
-    err = assert.throws(exec.check_func, exec, 'stdio.h', 123)
-    assert.match(err, 'func must be a string')
+    -- test that throws an error if params is not a table
+    err = assert.throws(exec.check_func, exec, 'stdio.h')
+    assert.match(err, 'params must be a table')
+
+    -- test that throws an error if params.name is not string
+    err = assert.throws(exec.check_func, exec, {
+        headers = 'stdio.h',
+        name = 123,
+    })
+    assert.match(err, 'params.name must be a string')
 end
 
 function testcase.check_type()
     local exec = executor('gcc')
 
     -- test that check whether the type is available
-    local ok, err = exec:check_type('sys/socket.h', 'struct sockaddr_storage')
+    local ok, err = exec:check_type({
+        headers = 'sys/socket.h',
+        name = 'struct sockaddr_storage',
+    })
     assert.is_true(ok)
     assert.is_nil(err)
 
-    -- test that return false if the types is not available
-    ok, err = exec:check_type(nil, 'struct sockaddr_storage')
+    -- test that return false if the type is not available (no headers)
+    ok, err = exec:check_type({
+        name = 'struct sockaddr_storage',
+    })
     assert.is_false(ok)
     assert.is_string(err)
 
-    -- test that throws an error if type argument is not string
-    err = assert.throws(exec.check_type, exec, 'stdio.h', 123)
-    assert.match(err, 'type must be a string')
+    -- test that throws an error if params is not a table
+    err = assert.throws(exec.check_type, exec, 'sys/socket.h')
+    assert.match(err, 'params must be a table')
+
+    -- test that throws an error if params.name is not string
+    err = assert.throws(exec.check_type, exec, {
+        headers = 'stdio.h',
+        name = 123,
+    })
+    assert.match(err, 'params.name must be a string')
 end
 
 function testcase.check_member()
     local exec = executor('gcc')
 
     -- test that check whether the member field is available
-    local ok, err = exec:check_member('sys/socket.h', 'struct sockaddr',
-                                      'sa_family')
+    local ok, err = exec:check_member({
+        headers = 'sys/socket.h',
+        name = 'struct sockaddr',
+        member = 'sa_family',
+    })
     assert.is_true(ok)
     assert.is_nil(err)
 
     -- test that return false if the member field is not available
-    ok, err = exec:check_member('sys/socket.h', 'struct sockaddr',
-                                'unknown_member')
+    ok, err = exec:check_member({
+        headers = 'sys/socket.h',
+        name = 'struct sockaddr',
+        member = 'unknown_member',
+    })
     assert.is_false(ok)
     assert.is_string(err)
 
-    -- test that throws an error if type argument is not string
-    err = assert.throws(exec.check_member, exec, 'sys/socket.h', 123)
-    assert.match(err, 'type must be a string')
+    -- test that throws an error if params is not a table
+    err = assert.throws(exec.check_member, exec, 'sys/socket.h')
+    assert.match(err, 'params must be a table')
 
-    -- test that throws an error if member argument is not string
-    err = assert.throws(exec.check_member, exec, 'sys/socket.h',
-                        'struct sockaddr', 123)
-    assert.match(err, 'member must be a string')
+    -- test that throws an error if params.name is not string
+    err = assert.throws(exec.check_member, exec, {
+        headers = 'sys/socket.h',
+        name = 123,
+    })
+    assert.match(err, 'params.name must be a string')
+
+    -- test that throws an error if params.member is not string
+    err = assert.throws(exec.check_member, exec, {
+        headers = 'sys/socket.h',
+        name = 'struct sockaddr',
+        member = 123,
+    })
+    assert.match(err, 'params.member must be a string')
 end
 
 function testcase.check_sizeof()
     local exec = executor('gcc')
 
     -- test that returns the size of a primitive type
-    local ok, err, size = exec:check_sizeof(nil, 'char')
+    local ok, err, size = exec:check_sizeof({
+        name = 'char',
+    })
     assert.is_true(ok)
     assert.is_nil(err)
     assert.equal(size, 1)
 
     -- test that returns the correct size for int (typically 4)
-    ok, err, size = exec:check_sizeof(nil, 'int')
+    ok, err, size = exec:check_sizeof({
+        name = 'int',
+    })
     assert.is_true(ok)
     assert.is_nil(err)
     assert.is_number(size)
     assert.is_true(size > 0)
 
     -- test that returns size using a header type
-    ok, err, size = exec:check_sizeof('stddef.h', 'size_t')
+    ok, err, size = exec:check_sizeof({
+        headers = 'stddef.h',
+        name = 'size_t',
+    })
     assert.is_true(ok)
     assert.is_nil(err)
     assert.is_number(size)
     assert.is_true(size > 0)
 
-    -- test that returns nil for an unknown type
-    ok, err, size = exec:check_sizeof(nil, 'no_such_type_t')
+    -- test that returns false for an unknown type
+    ok, err, size = exec:check_sizeof({
+        name = 'no_such_type_t',
+    })
     assert.is_false(ok)
     assert.is_string(err)
     assert.is_nil(size)
 
-    -- test that throws an error if ctype argument is not string
-    err = assert.throws(exec.check_sizeof, exec, nil, 123)
-    assert.match(err, 'ctype must be a string')
+    -- test that throws an error if params is not a table
+    err = assert.throws(exec.check_sizeof, exec, 'char')
+    assert.match(err, 'params must be a table')
+
+    -- test that throws an error if params.name is not string
+    err = assert.throws(exec.check_sizeof, exec, {
+        name = 123,
+    })
+    assert.match(err, 'params.name must be a string')
 end
 
 function testcase.set_cppflags()
@@ -395,28 +453,47 @@ function testcase.check_decl()
     local exec = executor('gcc')
 
     -- test that check whether the macro constant is defined
-    local ok, err = exec:check_decl('limits.h', 'PATH_MAX')
+    local ok, err = exec:check_decl({
+        headers = 'limits.h',
+        name = 'PATH_MAX',
+    })
     assert.is_true(ok)
     assert.is_nil(err)
 
     -- test that check whether the enum value is defined
-    ok, err = exec:check_decl('fcntl.h', 'O_RDONLY')
+    ok, err = exec:check_decl({
+        headers = 'fcntl.h',
+        name = 'O_RDONLY',
+    })
     assert.is_true(ok)
     assert.is_nil(err)
 
     -- test that check whether the global variable is defined
-    ok, err = exec:check_decl('errno.h', 'errno')
+    ok, err = exec:check_decl({
+        headers = 'errno.h',
+        name = 'errno',
+    })
     assert.is_true(ok)
     assert.is_nil(err)
 
     -- test that return false if the declaration is not available
-    ok, err = exec:check_decl('limits.h', 'UNKNOWN_CONSTANT')
+    ok, err = exec:check_decl({
+        headers = 'limits.h',
+        name = 'UNKNOWN_CONSTANT',
+    })
     assert.is_false(ok)
     assert.is_string(err)
 
-    -- test that throws an error if name argument is not string
-    err = assert.throws(exec.check_decl, exec, 'stdio.h', 123)
-    assert.match(err, 'name must be a string')
+    -- test that throws an error if params is not a table
+    err = assert.throws(exec.check_decl, exec, 'stdio.h')
+    assert.match(err, 'params must be a table')
+
+    -- test that throws an error if params.name is not string
+    err = assert.throws(exec.check_decl, exec, {
+        headers = 'stdio.h',
+        name = 123,
+    })
+    assert.match(err, 'params.name must be a string')
 end
 
 function testcase.cppflags_env()
@@ -553,17 +630,23 @@ function testcase.incdirs_functional()
     hfile:close()
 
     -- test that check_header fails without incdirs set
-    local ok = exec:check_header('configh_custom_test.h')
+    local ok = exec:check_header({
+        headers = 'configh_custom_test.h',
+    })
     assert.is_false(ok)
 
     -- test that check_header succeeds after adding the dir
     exec:add_incdirs(tmpdir)
-    ok = exec:check_header('configh_custom_test.h')
+    ok = exec:check_header({
+        headers = 'configh_custom_test.h',
+    })
     assert.is_true(ok)
 
     -- test that check_header fails after clearing incdirs
     exec:set_incdirs({})
-    ok = exec:check_header('configh_custom_test.h')
+    ok = exec:check_header({
+        headers = 'configh_custom_test.h',
+    })
     assert.is_false(ok)
 
     -- cleanup

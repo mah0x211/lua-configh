@@ -421,67 +421,71 @@ function Executor:set_ldflags(flags)
 end
 
 --- check_header check the header is available
---- @param headers string|string[]
+--- @param params table  { headers: string }
 --- @return boolean ok
 --- @return string? err
-function Executor:check_header(headers)
+function Executor:check_header(params)
+    assert(type(params) == 'table', 'params must be a table')
+    assert(type(params.headers) == 'string', 'params.headers must be a string')
     return self:preprocess({
-        headers = headers,
+        headers = params.headers,
     })
 end
 
 --- check_func check the function is available
---- @param headers string|string[]|nil
---- @param func string
+--- @param params table  { headers: string|string[]|nil, name: string }
 --- @return boolean ok
 --- @return string? err
-function Executor:check_func(headers, func)
-    assert(type(func) == 'string', 'func must be a string')
+function Executor:check_func(params)
+    assert(type(params) == 'table', 'params must be a table')
+    assert(type(params.name) == 'string', 'params.name must be a string')
     return self:link({
-        headers = headers,
+        headers = params.headers,
         code = format('void (*function_pointer)(void) = (void (*)(void))%s;',
-                      func),
+                      params.name),
     })
 end
 
 --- check_type check the type is available
---- @param headers string|string[]|nil
---- @param ctype string
+--- @param params table  { headers: string|string[]|nil, name: string }
+---                      name is the C type name (e.g. "struct sockaddr_storage")
 --- @return boolean ok
 --- @return string? err
-function Executor:check_type(headers, ctype)
-    assert(type(ctype) == 'string', 'type must be a string')
+function Executor:check_type(params)
+    assert(type(params) == 'table', 'params must be a table')
+    assert(type(params.name) == 'string', 'params.name must be a string')
     return self:compile({
-        headers = headers,
-        code = format('%s x;', ctype),
+        headers = params.headers,
+        code = format('%s x;', params.name),
     })
 end
 
 --- check_decl check whether named symbol is defined as a macro or can be used as an r-value
---- @param headers string|string[]|nil
---- @param name string
+--- @param params table  { headers: string|string[]|nil, name: string }
 --- @return boolean ok
 --- @return string? err
-function Executor:check_decl(headers, name)
-    assert(type(name) == 'string', 'name must be a string')
+function Executor:check_decl(params)
+    assert(type(params) == 'table', 'params must be a table')
+    assert(type(params.name) == 'string', 'params.name must be a string')
     return self:compile({
-        headers = headers,
-        code = format('#ifndef %s\n    (void)%s;\n#endif\n\n', name, name),
+        headers = params.headers,
+        code = format('#ifndef %s\n    (void)%s;\n#endif\n\n', params.name,
+                      params.name),
     })
 end
 
 --- check_member check the member field is available
---- @param headers string|string[]|nil
---- @param ctype string
---- @param member string
+--- @param params table  { headers: string|string[]|nil, name: string, member: string }
+---                      name is the C struct type name (e.g. "struct sockaddr")
 --- @return boolean ok
 --- @return string? err
-function Executor:check_member(headers, ctype, member)
-    assert(type(ctype) == 'string', 'type must be a string')
-    assert(type(member) == 'string', 'member must be a string')
+function Executor:check_member(params)
+    assert(type(params) == 'table', 'params must be a table')
+    assert(type(params.name) == 'string', 'params.name must be a string')
+    assert(type(params.member) == 'string', 'params.member must be a string')
     return self:compile({
-        headers = headers,
-        code = format('%s x; (void)x.%s;', ctype, member),
+        headers = params.headers,
+        code = format('%s x; (void)x.%s;', params.name, params.member),
     })
 end
 
@@ -490,13 +494,14 @@ end
 --- file, then scanning the binary to extract the value.  The per-call
 --- unique objfile path is used as the signature, so false matches against
 --- any content from user-specified headers cannot occur.
---- @param headers string|string[]|nil
---- @param ctype string
+--- @param params table  { headers: string|string[]|nil, name: string }  name is the C type name (e.g. "size_t")
 --- @return boolean ok
 --- @return string? err
---- @return integer? size  the sizeof(ctype), or nil if undetermined
-function Executor:check_sizeof(headers, ctype)
-    assert(type(ctype) == 'string', 'ctype must be a string')
+--- @return integer? size  the sizeof(params.name), or nil if undetermined
+function Executor:check_sizeof(params)
+    assert(type(params) == 'table', 'params must be a table')
+    assert(type(params.name) == 'string', 'params.name must be a string')
+    local ctype = params.name
 
     local objfile = tmpname() .. '.o'
     -- Encode the unique objfile path as decimal byte values so it can be
@@ -535,7 +540,7 @@ return (int)((char*)&$VARNAME - (char*)0);]]):gsub('%$([A-Z_]+)', {
     })
 
     local ok, err = self:compile({
-        headers = headers,
+        headers = params.headers,
         code = code,
         outfile = objfile,
     })
