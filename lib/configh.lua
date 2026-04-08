@@ -116,20 +116,20 @@ function Configh:flush(pathname)
 
     -- iterate inspected in insertion order; HAVE_ conversion happens here
     for _, entry in ipairs(self.inspected) do
-        local macro_name = entry.fqname:upper():gsub('[^%w]', '_')
+        local macro_name = entry.name:upper():gsub('[^%w]', '_')
         if entry.target == 'sizeof' then
-            lines[#lines + 1] = format('/* Size of `%s`. */', entry.fqname)
+            lines[#lines + 1] = format('/* Size of `%s`. */', entry.name)
             lines[#lines + 1] = entry.is_exists and
                                     format('#define SIZEOF_%s %d', macro_name,
                                            entry.size) or
                                     format('/* #undef SIZEOF_%s */', macro_name)
         else
-            local fqname =
+            local display =
                 (entry.target == 'headers' and '<%s>' or "`%s'"):format(
-                    entry.fqname)
+                    entry.name)
             lines[#lines + 1] = format(
                                     '/* Define to 1 if you have the %s %s. */',
-                                    fqname, DECL_KIND[entry.target])
+                                    display, DECL_KIND[entry.target])
             lines[#lines + 1] = entry.is_exists and
                                     format('#define HAVE_%s 1', macro_name) or
                                     format('/* #undef HAVE_%s */', macro_name)
@@ -264,17 +264,16 @@ local EXEC_METHOD = {
 }
 
 --- check executes a probe via the EXEC_METHOD dispatch table and records
---- the result in inspected. If the fqname is already registered under
+--- the result in inspected. If the name is already registered under
 --- target, the existing entry's is_exists is updated without adding a new
 --- integer-indexed slot, preventing duplicate lines in config.h output.
---- params fields:
----   headers  string|table|nil  include headers passed to the executor
----                               (for 'headers' target: the header being checked)
----   declname string             primary declaration name (header, func/type/decl name,
----                               or struct/union type name for 'members'/'sizeof')
----   member   string?            member field name ('members' target only)
----   fqname   string?            fully qualified name used for display, hash key, and
----                               HAVE_ macro (defaults to declname; 'declname.member' for members)
+--- check() validates only the fields it directly references:
+---   name     string   C identifier or type name; used as the hash key,
+---                     display label, and HAVE_/SIZEOF_ macro base.
+---                     For 'members', the stored key becomes "name.member".
+---   member   string   member field name ('members' target only, required)
+--- All other fields (headers, ...) are passed through to the executor
+--- without validation here; each executor method validates its own fields.
 --- @param self configh
 --- @param target string  'headers'|'funcs'|'types'|'decls'|'members'|'sizeof'
 --- @param params table
@@ -284,134 +283,125 @@ local function check(self, target, params)
     assert(EXEC_METHOD[target] ~= nil,
            "target must be 'headers', 'funcs', 'types', 'decls', 'members' or 'sizeof'")
     assert(type(params) == 'table', 'params must be table')
-    assert(type(params.declname) == 'string', 'params.declname must be string')
-    assert(params.headers == nil or type(params.headers) == 'string' or
-               type(params.headers) == 'table',
-           'params.headers must be string, table or nil')
-    assert(params.member == nil or type(params.member) == 'string',
-           'params.member must be string or nil')
-    assert(params.fqname == nil or type(params.fqname) == 'string',
-           'params.fqname must be string or nil')
+    assert(type(params.name) == 'string', 'params.name must be string')
 
-    local fqname = params.fqname or params.declname
+    local name = params.name
+    -- for members the inspected key is "type.member"; for all other targets
+    -- it equals params.name directly
+    if target == 'members' then
+        assert(type(params.member) == 'string',
+               'params.member must be string for members target')
+        name = name .. '.' .. params.member
+    end
+    printf(self, 'check %s: %s ... ', DECL_KIND[target], name)
 
-    printf(self, 'check %s: %s ... ', DECL_KIND[target], fqname)
-    local ok, err, extra = self.exec[EXEC_METHOD[target]](self.exec,
-                                                          params.headers,
-                                                          params.declname,
-                                                          params.member)
-    if target == 'sizeof' then
-        printf(self, ok and format('%d\n', extra) or 'unknown\n')
+    local ok, err, extra = self.exec[EXEC_METHOD[target]](self.exec, params)
+    if not ok then
+        printf(self, 'not found\n')
+        if err then
+            printf(self, '%s\n', '  >  ' .. gsub(err, '\n', '\n  >  '))
+        end
+    elseif target == 'sizeof' then
+        printf(self, 'found (%s)\n', tostring(extra))
     else
-        printf(self, ok and 'found\n' or 'not found\n')
-    end
-    if not ok and err then
-        printf(self, '  >  ' .. gsub(err, '\n', '\n  >  '), '\n')
+        printf(self, 'found\n')
     end
 
-    local entry = self.inspected[target][fqname]
-    if entry then
-        -- dedup: update is_exists but keep the existing integer-indexed slot
-        entry.is_exists = ok
-        entry.size = target == 'sizeof' and extra or entry.size
-        return ok, err
+    local entry = self.inspected[target][name]
+    if not entry then
+        entry = {
+            target = target,
+            name = name,
+            is_exists = ok,
+            member = target == 'members' and params.member or nil,
+        }
+        self.inspected[target][name] = entry
+        self.inspected[#self.inspected + 1] = entry
     end
-
-    local n = #self.inspected + 1
-    entry = {
-        target = target,
-        fqname = fqname,
-        declname = params.declname,
-        is_exists = ok,
-        order = n,
-        member = params.member,
-        size = target == 'sizeof' and extra or nil,
-    }
-    self.inspected[target][fqname] = entry
-    self.inspected[n] = entry
+    entry.is_exists = ok
+    entry.size = target == 'sizeof' and extra or nil
     return ok, err
 end
 
 --- check_header check whether the header file exists
---- @param header string
+--- @param header string  header file path (e.g. "stdio.h", "sys/socket.h")
 --- @return boolean ok true if the header file exists
 --- @return string? err error message from the compiler
 function Configh:check_header(header)
     assert(type(header) == 'string', 'header must be string')
     return check(self, 'headers', {
+        name = header,
         headers = header,
-        declname = header,
     })
 end
 
 --- check_func check whether the function exists
---- @param headers string|string[]|nil
---- @param func string
+--- @param headers string|string[]|nil  header files that declare the function
+--- @param name string  function name (e.g. "printf")
 --- @return boolean ok true if the function exists
 --- @return string? err error message from the compiler
-function Configh:check_func(headers, func)
-    assert(type(func) == 'string', 'func must be string')
+function Configh:check_func(headers, name)
+    assert(type(name) == 'string', 'name must be string')
     return check(self, 'funcs', {
+        name = name,
         headers = headers,
-        declname = func,
     })
 end
 
 --- check_type check whether the type exists
---- @param headers string|string[]|nil
---- @param ctype string
+--- @param headers string|string[]|nil  header files that declare the type
+--- @param name string  C type name (e.g. "struct sockaddr_storage")
 --- @return boolean ok true if the type exists
 --- @return string? err error message from the compiler
-function Configh:check_type(headers, ctype)
-    assert(type(ctype) == 'string', 'ctype must be string')
+function Configh:check_type(headers, name)
+    assert(type(name) == 'string', 'name must be string')
     return check(self, 'types', {
+        name = name,
         headers = headers,
-        declname = ctype,
     })
 end
 
 --- check_decl check whether named symbol is defined as a macro or can be used as an r-value
---- @param headers string|string[]|nil
---- @param name string
+--- @param headers string|string[]|nil  header files that declare the symbol
+--- @param name string  symbol name (e.g. "PATH_MAX", "O_RDONLY")
 --- @return boolean ok true if the declaration exists
 --- @return string? err error message from the compiler
 function Configh:check_decl(headers, name)
     assert(type(name) == 'string', 'name must be string')
     return check(self, 'decls', {
+        name = name,
         headers = headers,
-        declname = name,
     })
 end
 
 --- check_member check whether the member field exists
---- @param headers string|string[]|nil
---- @param ctype string
---- @param member string
+--- @param headers string|string[]|nil  header files that declare the struct
+--- @param name string  C struct type name (e.g. "struct sockaddr")
+--- @param member string  member field name (e.g. "sa_family")
 --- @return boolean ok true if the member exists
 --- @return string? err error message from the compiler
-function Configh:check_member(headers, ctype, member)
-    assert(type(ctype) == 'string', 'ctype must be string')
+function Configh:check_member(headers, name, member)
+    assert(type(name) == 'string', 'name must be string')
     assert(type(member) == 'string', 'member must be string')
     return check(self, 'members', {
+        name = name,
         headers = headers,
-        declname = ctype,
         member = member,
-        fqname = ctype .. '.' .. member,
     })
 end
 
 --- check_sizeof determines the size of a C type at compile time and records
 --- the result in inspected.sizeof. The size can be read back via
---- inspected.sizeof[ctype].size after a successful call.
---- @param headers string|string[]|nil
---- @param ctype string
+--- inspected.sizeof[name].size after a successful call.
+--- @param headers string|string[]|nil  header files that declare the type
+--- @param name string  C type name (e.g. "size_t", "struct sockaddr")
 --- @return boolean ok
 --- @return string? err
-function Configh:check_sizeof(headers, ctype)
-    assert(type(ctype) == 'string', 'ctype must be a string')
+function Configh:check_sizeof(headers, name)
+    assert(type(name) == 'string', 'name must be a string')
     return check(self, 'sizeof', {
+        name = name,
         headers = headers,
-        declname = ctype,
     })
 end
 
