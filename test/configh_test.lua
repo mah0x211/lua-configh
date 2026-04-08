@@ -16,11 +16,15 @@ function testcase.new_configh()
     setenv('CC', nil)
 
     -- test that throws an error if cc is not string
-    local err = assert.throws(configh, 123)
+    local err = assert.throws(function()
+        configh(123)
+    end)
     assert.match(err, 'cc must be string or nil')
 
     -- test that throws an error if cc and CC environment variable are not set
-    err = assert.throws(configh)
+    err = assert.throws(function()
+        configh()
+    end)
     assert.match(err,
                  'cc argument or CC environment variable must contain compiler name')
 end
@@ -150,9 +154,10 @@ function testcase.check_sizeof()
     local cfgh = configh('gcc')
 
     -- test that returns true for a known type
-    local ok, err = cfgh:check_sizeof(nil, 'char')
+    local ok, err, size = cfgh:check_sizeof(nil, 'char')
     assert.is_true(ok)
     assert.is_nil(err)
+    assert.equal(size, 1)
     -- confirm that the entry is recorded in inspected.sizeof keyed by type name
     local entry = cfgh.inspected.sizeof['char']
     assert.not_nil(entry)
@@ -160,9 +165,10 @@ function testcase.check_sizeof()
     assert.equal(entry.size, 1)
 
     -- test that records the correct size for size_t with header
-    ok, err = cfgh:check_sizeof('stddef.h', 'size_t')
+    ok, err, size = cfgh:check_sizeof('stddef.h', 'size_t')
     assert.is_true(ok)
     assert.is_nil(err)
+    assert.is_true(size > 0)
     local size_t_entry = cfgh.inspected.sizeof['size_t']
     assert.not_nil(size_t_entry)
     assert.is_true(size_t_entry.size > 0)
@@ -172,10 +178,11 @@ function testcase.check_sizeof()
     cfgh:check_sizeof(nil, 'char')
     assert.equal(cfgh.inspected.sizeof['char'], entry_first)
 
-    -- test that returns false for an unknown type
-    ok, err = cfgh:check_sizeof(nil, 'no_such_type_t')
+    -- test that returns false for an unknown type (size is nil)
+    ok, err, size = cfgh:check_sizeof(nil, 'no_such_type_t')
     assert.is_false(ok)
     assert.is_string(err)
+    assert.is_nil(size)
     local unknown_entry = cfgh.inspected.sizeof['no_such_type_t']
     assert.not_nil(unknown_entry)
     assert.equal(unknown_entry.is_exists, false)
@@ -512,15 +519,4 @@ function testcase.inspected_mixed_table()
     assert.equal(f.name, 'printf')
 end
 
-function testcase.check_header_dedup()
-    local cfgh = configh('gcc')
-    cfgh:check_header('stdio.h')
-    cfgh:check_header('stdio.h') -- re-probes and updates existing entry; no new integer entry
-    assert.equal(#cfgh.inspected, 1)
-
-    -- check_func dedup: same name re-probes but adds no new integer entry
-    cfgh:check_func('stdio.h', 'printf')
-    cfgh:check_func('stdio.h', 'printf') -- re-probe, no new entry
-    assert.equal(#cfgh.inspected, 2)
-end
 

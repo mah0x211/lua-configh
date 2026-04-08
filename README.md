@@ -216,9 +216,80 @@ The generated `config.h` file looks like this:
 
 ## Library API
 
-The `configh` module provides an API to generate a config.h file programmatically.
+The `configh` module provides two usage patterns: a declarative high-level
+function `configh.generate()` and a manual instance API.
 
-### Usage
+### Using configh.generate()
+
+The `configh.generate` module provides a `generate()` function that accepts
+a single cfg table and runs all probes in one call, then writes the result
+to `cfg.output`.
+
+```lua
+local generate = require('configh.generate')
+local report, err = generate({
+    -- C compiler name (optional, default: $CC)
+    cc = 'gcc',
+
+    -- output file path (required)
+    output = 'src/config.h',
+
+    -- enable status output (optional, default: false)
+    output_status = true,
+
+    -- compiler/linker settings (optional)
+    incdirs  = {'/usr/local/include'},
+    libdirs  = {'/usr/local/lib'},
+    libs     = {'z'},
+    cppflags = {'-D_GNU_SOURCE'},
+    cflags   = {'-std=c11'},
+    ldflags  = {'-Wl,-rpath,/usr/local/lib'},
+
+    -- feature macros (optional, mixed table)
+    features = {
+        _GNU_SOURCE = 1,
+        'ENABLE_FEATURE_X',
+    },
+
+    -- headers to check (optional)
+    headers = {'stdio.h', 'stdlib.h'},
+
+    -- functions to check per header (optional)
+    funcs = {
+        ['sys/epoll.h'] = {'epoll_create', 'epoll_create1'},
+    },
+
+    -- types to check per header (optional)
+    types = {
+        ['sys/types.h'] = {'pid_t', 'size_t'},
+    },
+
+    -- declarations to check per header (optional)
+    decls = {
+        ['unistd.h'] = {'STDIN_FILENO', 'STDOUT_FILENO'},
+    },
+
+    -- type sizes to measure per header (optional)
+    sizeof = {
+        ['sys/types.h'] = {'size_t', 'off_t'},
+    },
+
+    -- struct members to check per header (optional)
+    members = {
+        ['stdio.h'] = {
+            FILE = {'_flags'},
+        },
+    },
+})
+if report == nil then
+    error(err)
+end
+-- report['stdio.h'].is_exists            => true/false (header probed)
+-- report['sys/epoll.h'].epoll_create     => true/false (func found/not found)
+-- report['sys/types.h']['size_t']        => integer (byte size) or false
+```
+
+### Using the instance API
 
 ```lua
 local configh = require('configh')
@@ -278,10 +349,13 @@ end
 
 -- check the size of a C type at compile time.
 -- SIZEOF_<TYPE> macro is emitted in config.h on success.
-ok, err = cfgh:check_sizeof('sys/types.h', 'size_t')
+local sz
+ok, err, sz = cfgh:check_sizeof('sys/types.h', 'size_t')
 if not ok then
     print('size_t not found')
     print(err)
+else
+    print('size_t = ' .. sz .. ' bytes')
 end
 
 -- flush the definition macros to the specified pathname.
@@ -292,6 +366,67 @@ if not ok then
     return
 end
 ```
+
+
+## report, err = generate( cfg [, label] )
+
+`require('configh.generate')` returns this function.
+
+Creates a `configh` instance, applies all settings from `cfg`, runs all
+probes, and flushes the result to `cfg.output`. This is the recommended
+entry point when all probe information is known up front.
+
+**Parameters**
+
+- `cfg:table`: configuration table with the following fields:
+  - `cc:string?`: C compiler name. Defaults to the `CC` environment variable.
+  - `output:string`: output path for the generated `config.h` file. **Required.**
+  - `output_status:boolean?`: enable status output to stdout (default: `false`).
+  - `incdirs:string|string[]?`: include directories (passed as `-I` flags).
+  - `libdirs:string|string[]?`: library search directories (passed as `-L` flags).
+  - `libs:string|string[]?`: library names to link against (passed as `-l` flags).
+  - `cppflags:string|string[]?`: extra preprocessor flags.
+  - `cflags:string|string[]?`: extra compiler flags.
+  - `ldflags:string|string[]?`: extra linker flags.
+  - `features:table?`: feature macros. Mixed table: string keys define named
+    macros with a value; integer-keyed strings define macros without a value.
+  - `headers:string[]?`: header files to probe with `check_header`.
+  - `funcs:table<string,string[]>?`: functions to probe per header file.
+    Format: `{ [header] = { func, ... } }`.
+  - `types:table<string,string[]>?`: C types to probe per header file.
+    Format: `{ [header] = { type, ... } }`.
+  - `decls:table<string,string[]>?`: declarations to probe per header file.
+    Format: `{ [header] = { decl, ... } }`.
+  - `sizeof:table<string,string[]>?`: type sizes to measure per header file.
+    Format: `{ [header] = { type, ... } }`.
+  - `members:table<string,table<string,string[]>>?`: struct members to probe.
+    Format: `{ [header] = { [type] = { member, ... } } }`.
+- `label:string?`: root label used in error messages (default: `'cfg'`).
+  Typically set to the module name (e.g. `build.modules` key) when called
+  from `luarocks-build-hooks`.
+
+**Returns**
+
+- `report:table`: probe result table on success.
+  - `report[header].is_exists:boolean`: whether the header was found.
+  - `report[header][name]:boolean`: `true`/`false` for each `funcs`, `types`,
+    or `decls` probe.
+  - `report[header]["type.member"]:boolean`: `true`/`false` for each `members`
+    probe. The key is `"ctype.member"` (e.g. `"FILE._flags"`).
+  - `report[header][name]:integer`: byte size for each `sizeof` probe, or
+    `false` if the type was not found.
+- `err:string?`: error message if `cfg.output` could not be written
+  (`report` is `nil` in this case).
+
+**NOTE**
+
+- `check_header` deduplication is applied automatically: a header that appears
+  in both `headers` and as a key in `funcs`/`types`/`decls`/`sizeof`/`members`
+  is compiled only once.
+- `funcs` always calls `check_func(header, name)` without a per-function
+  library argument. Use `cfg.libs` to set global link libraries for all probes,
+  or use the instance API (`configh:check_func`) for per-function library
+  control.
 
 
 ## cfgh = configh( cc )
@@ -485,7 +620,7 @@ Checks whether the specified header file exists.
 **Returns**
 
 - `ok:boolean`: `true` on success, or `false` on failure.
-- `err:string`: error message if the generated source code fails to compile.
+- `err:string?`: error message if the generated source code fails to compile.
 
 
 ## ok, err = configh:check_func( headers, name [, library] )
@@ -501,7 +636,7 @@ Checks whether the specified function exists.
 **Returns**
 
 - `ok:boolean`: `true` on success, or `false` on failure.
-- `err:string`: error message if the generated source code fails to compile or link.
+- `err:string?`: error message if the generated source code fails to compile or link.
 
 
 ## ok, err = configh:check_type( headers, name )
@@ -516,7 +651,7 @@ Checks whether the specified type exists.
 **Returns**
 
 - `ok:boolean`: `true` on success, or `false` on failure.
-- `err:string`: error message if the generated source code fails to compile.
+- `err:string?`: error message if the generated source code fails to compile.
 
 
 ## ok, err = configh:check_decl( headers, name )
@@ -531,7 +666,7 @@ Checks whether the specified declaration (macro constant, enum value, or global 
 **Returns**
 
 - `ok:boolean`: `true` on success, or `false` on failure.
-- `err:string`: error message if the generated source code fails to compile.
+- `err:string?`: error message if the generated source code fails to compile.
 
 
 ## ok, err = configh:check_member( headers, name, member )
@@ -547,10 +682,10 @@ Checks whether the specified member field exists in the type.
 **Returns**
 
 - `ok:boolean`: `true` on success, or `false` on failure.
-- `err:string`: error message if the generated source code fails to compile.
+- `err:string?`: error message if the generated source code fails to compile.
 
 
-## ok, err = configh:check_sizeof( headers, name )
+## ok, err, size = configh:check_sizeof( headers, name )
 
 Determines the size of a C type at compile time.
 
@@ -562,7 +697,8 @@ Determines the size of a C type at compile time.
 **Returns**
 
 - `ok:boolean`: `true` on success, or `false` on failure.
-- `err:string`: error message if the generated source code fails to compile.
+- `err:string?`: error message if the generated source code fails to compile.
+- `size:integer?`: byte size of the type on success, `nil` on failure.
 
 **NOTE**
 
@@ -582,7 +718,7 @@ Flushes the definition macros to the specified pathname.
 **Returns**
 
 - `ok:boolean`: `true` on success, or `false` on failure.
-- `err:string`: error message if the file failed to be written.
+- `err:string?`: error message if the file failed to be written.
 
 
 ## License

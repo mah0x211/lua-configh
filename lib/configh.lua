@@ -353,7 +353,7 @@ local function check(self, target, params)
     end
     entry.is_exists = ok
     entry.size = target == 'sizeof' and extra or nil
-    return ok, err
+    return ok, err, extra
 end
 
 --- check_header check whether the header file exists
@@ -430,12 +430,12 @@ function Configh:check_member(headers, name, member)
 end
 
 --- check_sizeof determines the size of a C type at compile time and records
---- the result in inspected.sizeof. The size can be read back via
---- inspected.sizeof[name].size after a successful call.
+--- the result in inspected.sizeof.
 --- @param headers string|string[]|nil  header files that declare the type
 --- @param name string  C type name (e.g. "size_t", "struct sockaddr")
 --- @return boolean ok
 --- @return string? err
+--- @return integer? size  byte size of the type on success, nil otherwise
 function Configh:check_sizeof(headers, name)
     assert(type(name) == 'string', 'name must be a string')
     return check(self, 'sizeof', {
