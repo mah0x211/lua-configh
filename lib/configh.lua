@@ -41,6 +41,7 @@ local DECL_KIND = {
     types = 'type',
     decls = 'decl',
     members = 'member',
+    sizeof = 'sizeof',
 }
 
 --- @class configh
@@ -60,6 +61,7 @@ function Configh:init(cc)
         types = {},
         decls = {},
         members = {},
+        sizeof = {},
     }
     self.exec = executor(cc)
     self.output = false
@@ -114,14 +116,24 @@ function Configh:flush(pathname)
 
     -- iterate inspected in insertion order; HAVE_ conversion happens here
     for _, entry in ipairs(self.inspected) do
-        local fqname = (entry.target == 'headers' and '<%s>' or "`%s'"):format(
-                           entry.fqname)
         local macro_name = entry.fqname:upper():gsub('[^%w]', '_')
-        lines[#lines + 1] = format('/* Define to 1 if you have the %s %s. */',
-                                   fqname, DECL_KIND[entry.target])
-        lines[#lines + 1] = entry.is_exists and
-                                format('#define HAVE_%s 1', macro_name) or
-                                format('/* #undef HAVE_%s */', macro_name)
+        if entry.target == 'sizeof' then
+            lines[#lines + 1] = format('/* Size of `%s`. */', entry.fqname)
+            lines[#lines + 1] = entry.is_exists and
+                                    format('#define SIZEOF_%s %d', macro_name,
+                                           entry.size) or
+                                    format('/* #undef SIZEOF_%s */', macro_name)
+        else
+            local fqname =
+                (entry.target == 'headers' and '<%s>' or "`%s'"):format(
+                    entry.fqname)
+            lines[#lines + 1] = format(
+                                    '/* Define to 1 if you have the %s %s. */',
+                                    fqname, DECL_KIND[entry.target])
+            lines[#lines + 1] = entry.is_exists and
+                                    format('#define HAVE_%s 1', macro_name) or
+                                    format('/* #undef HAVE_%s */', macro_name)
+        end
         lines[#lines + 1] = ''
     end
     self.inspected = {
@@ -130,6 +142,7 @@ function Configh:flush(pathname)
         types = {},
         decls = {},
         members = {},
+        sizeof = {},
     }
 
     -- output messages
@@ -247,6 +260,7 @@ local EXEC_METHOD = {
     types = 'check_type',
     decls = 'check_decl',
     members = 'check_member',
+    sizeof = 'check_sizeof',
 }
 
 --- check executes a probe via the EXEC_METHOD dispatch table and records
@@ -257,18 +271,18 @@ local EXEC_METHOD = {
 ---   headers  string|table|nil  include headers passed to the executor
 ---                               (for 'headers' target: the header being checked)
 ---   declname string             primary declaration name (header, func/type/decl name,
----                               or struct/union type name for 'members')
+---                               or struct/union type name for 'members'/'sizeof')
 ---   member   string?            member field name ('members' target only)
 ---   fqname   string?            fully qualified name used for display, hash key, and
 ---                               HAVE_ macro (defaults to declname; 'declname.member' for members)
 --- @param self configh
---- @param target string  'headers'|'funcs'|'types'|'decls'|'members'
+--- @param target string  'headers'|'funcs'|'types'|'decls'|'members'|'sizeof'
 --- @param params table
 --- @return boolean ok
 --- @return string? err
 local function check(self, target, params)
     assert(EXEC_METHOD[target] ~= nil,
-           "target must be 'headers', 'funcs', 'types', 'decls' or 'members'")
+           "target must be 'headers', 'funcs', 'types', 'decls', 'members' or 'sizeof'")
     assert(type(params) == 'table', 'params must be table')
     assert(type(params.declname) == 'string', 'params.declname must be string')
     assert(params.headers == nil or type(params.headers) == 'string' or
@@ -282,10 +296,15 @@ local function check(self, target, params)
     local fqname = params.fqname or params.declname
 
     printf(self, 'check %s: %s ... ', DECL_KIND[target], fqname)
-    local ok, err = self.exec[EXEC_METHOD[target]](self.exec, params.headers,
-                                                   params.declname,
-                                                   params.member)
-    printf(self, ok and 'found\n' or 'not found\n')
+    local ok, err, extra = self.exec[EXEC_METHOD[target]](self.exec,
+                                                          params.headers,
+                                                          params.declname,
+                                                          params.member)
+    if target == 'sizeof' then
+        printf(self, ok and format('%d\n', extra) or 'unknown\n')
+    else
+        printf(self, ok and 'found\n' or 'not found\n')
+    end
     if not ok and err then
         printf(self, '  >  ' .. gsub(err, '\n', '\n  >  '), '\n')
     end
@@ -294,6 +313,7 @@ local function check(self, target, params)
     if entry then
         -- dedup: update is_exists but keep the existing integer-indexed slot
         entry.is_exists = ok
+        entry.size = target == 'sizeof' and extra or entry.size
         return ok, err
     end
 
@@ -305,6 +325,7 @@ local function check(self, target, params)
         is_exists = ok,
         order = n,
         member = params.member,
+        size = target == 'sizeof' and extra or nil,
     }
     self.inspected[target][fqname] = entry
     self.inspected[n] = entry
@@ -376,6 +397,21 @@ function Configh:check_member(headers, ctype, member)
         declname = ctype,
         member = member,
         fqname = ctype .. '.' .. member,
+    })
+end
+
+--- check_sizeof determines the size of a C type at compile time and records
+--- the result in inspected.sizeof. The size can be read back via
+--- inspected.sizeof[ctype].size after a successful call.
+--- @param headers string|string[]|nil
+--- @param ctype string
+--- @return boolean ok
+--- @return string? err
+function Configh:check_sizeof(headers, ctype)
+    assert(type(ctype) == 'string', 'ctype must be a string')
+    return check(self, 'sizeof', {
+        headers = headers,
+        declname = ctype,
     })
 end
 

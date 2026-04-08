@@ -44,7 +44,7 @@ function testcase.makecsrc()
     local exec = executor('gcc')
 
     -- test that create a new c source file
-    local pathname = exec:makecsrc('stdio.h', 'test_t x')
+    local pathname = exec:makecsrc('stdio.h', 'test_t x;')
     local f = assert(io.open(pathname, 'r'))
     os.remove(pathname)
     local src = f:read('*a')
@@ -142,14 +142,14 @@ function testcase.compile()
     -- test that compile succeeds for an existing type (with header)
     local ok, err = exec:compile({
         headers = 'sys/socket.h',
-        code = 'struct sockaddr_storage x',
+        code = 'struct sockaddr_storage x;',
     })
     assert.is_true(ok)
     assert.is_nil(err)
 
     -- test that compile fails for an unknown type
     ok, err = exec:compile({
-        code = 'unknown_type_xyz_for_test x',
+        code = 'unknown_type_xyz_for_test x;',
     })
     assert.is_false(ok)
     assert.is_string(err)
@@ -161,14 +161,14 @@ function testcase.link()
     -- test that link succeeds for an existing function (with header)
     local ok, err = exec:link({
         headers = 'stdio.h',
-        code = 'void (*fp)(void) = (void (*)(void))printf',
+        code = 'void (*fp)(void) = (void (*)(void))printf;',
     })
     assert.is_true(ok)
     assert.is_nil(err)
 
     -- test that link fails for a nonexistent function
     ok, err = exec:link({
-        code = 'void (*fp)(void) = (void (*)(void))nonexistent_func_xyz_for_test',
+        code = 'void (*fp)(void) = (void (*)(void))nonexistent_func_xyz_for_test;',
     })
     assert.is_false(ok)
     assert.is_string(err)
@@ -258,6 +258,40 @@ function testcase.check_member()
     err = assert.throws(exec.check_member, exec, 'sys/socket.h',
                         'struct sockaddr', 123)
     assert.match(err, 'member must be a string')
+end
+
+function testcase.check_sizeof()
+    local exec = executor('gcc')
+
+    -- test that returns the size of a primitive type
+    local ok, err, size = exec:check_sizeof(nil, 'char')
+    assert.is_true(ok)
+    assert.is_nil(err)
+    assert.equal(size, 1)
+
+    -- test that returns the correct size for int (typically 4)
+    ok, err, size = exec:check_sizeof(nil, 'int')
+    assert.is_true(ok)
+    assert.is_nil(err)
+    assert.is_number(size)
+    assert.is_true(size > 0)
+
+    -- test that returns size using a header type
+    ok, err, size = exec:check_sizeof('stddef.h', 'size_t')
+    assert.is_true(ok)
+    assert.is_nil(err)
+    assert.is_number(size)
+    assert.is_true(size > 0)
+
+    -- test that returns nil for an unknown type
+    ok, err, size = exec:check_sizeof(nil, 'no_such_type_t')
+    assert.is_false(ok)
+    assert.is_string(err)
+    assert.is_nil(size)
+
+    -- test that throws an error if ctype argument is not string
+    err = assert.throws(exec.check_sizeof, exec, nil, 123)
+    assert.match(err, 'ctype must be a string')
 end
 
 function testcase.set_cppflags()
