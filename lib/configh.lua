@@ -62,6 +62,7 @@ function Configh:init(cc)
         decls = {},
         members = {},
         sizeof = {},
+        libs = {},
     }
     self.exec = executor(cc)
     self.output = false
@@ -133,6 +134,18 @@ function Configh:flush(pathname)
             lines[#lines + 1] = entry.is_exists and
                                     format('#define HAVE_%s 1', macro_name) or
                                     format('/* #undef HAVE_%s */', macro_name)
+            if entry.library then
+                local lib_macro = entry.library:upper():gsub('[^%w]', '_')
+                local lib_exists = self.inspected.libs[entry.library]
+                lines[#lines + 1] = format(
+                                        "/* Define to 1 if you have the `%s' library. */",
+                                        entry.library)
+                lines[#lines + 1] = lib_exists and
+                                        format('#define HAVE_LIB_%s 1',
+                                               lib_macro) or
+                                        format('/* #undef HAVE_LIB_%s */',
+                                               lib_macro)
+            end
         end
         lines[#lines + 1] = ''
     end
@@ -143,6 +156,7 @@ function Configh:flush(pathname)
         decls = {},
         members = {},
         sizeof = {},
+        libs = {},
     }
 
     -- output messages
@@ -272,7 +286,10 @@ local EXEC_METHOD = {
 ---                     display label, and HAVE_/SIZEOF_ macro base.
 ---                     For 'members', the stored key becomes "name.member".
 ---   member   string   member field name ('members' target only, required)
---- All other fields (headers, ...) are passed through to the executor
+---   library  string?  library name; the first probe for a given library
+---                     name sets entry.library so flush() emits HAVE_LIB_*
+---                     alongside the function macro.
+--- All other fields (headers, func, ...) are passed through to the executor
 --- without validation here; each executor method validates its own fields.
 --- @param self configh
 --- @param target string  'headers'|'funcs'|'types'|'decls'|'members'|'sizeof'
@@ -309,11 +326,27 @@ local function check(self, target, params)
 
     local entry = self.inspected[target][name]
     if not entry then
+        -- library dedup: only the first funcs probe for a given library name
+        -- carries entry.library so that flush() emits HAVE_LIB_* exactly once.
+        -- libs[library] stores the probe result so flush() uses it independently
+        -- of the function's entry.is_exists.
+        local library = params.library
+        if library then
+            local libs = self.inspected.libs
+            local is_first_link = libs[library] == nil
+            if not libs[library] then
+                libs[library] = ok
+            end
+            if not is_first_link then
+                library = nil
+            end
+        end
         entry = {
             target = target,
             name = name,
             is_exists = ok,
             member = target == 'members' and params.member or nil,
+            library = library,
         }
         self.inspected[target][name] = entry
         self.inspected[#self.inspected + 1] = entry
@@ -335,16 +368,22 @@ function Configh:check_header(header)
     })
 end
 
---- check_func check whether the function exists
+--- check_func check whether the function exists. When library is given, the
+--- link probe also uses -l<library>. The first probe for a given library
+--- name also emits a HAVE_LIB_<LIBRARY> macro in flush().
 --- @param headers string|string[]|nil  header files that declare the function
 --- @param name string  function name (e.g. "printf")
---- @return boolean ok true if the function exists
+--- @param library string?  optional library name to link (e.g. "m" for -lm)
+--- @return boolean ok true if the function (and library) exists
 --- @return string? err error message from the compiler
-function Configh:check_func(headers, name)
+function Configh:check_func(headers, name, library)
     assert(type(name) == 'string', 'name must be string')
+    assert(library == nil or type(library) == 'string',
+           'library must be string or nil')
     return check(self, 'funcs', {
         name = name,
         headers = headers,
+        library = library,
     })
 end
 

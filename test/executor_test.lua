@@ -230,6 +230,31 @@ function testcase.check_func()
         name = 123,
     })
     assert.match(err, 'params.name must be a string')
+
+    -- test that check with a library links against it
+    ok, err = exec:check_func({
+        headers = 'math.h',
+        name = 'sin',
+        library = 'm',
+    })
+    assert.is_true(ok)
+    assert.is_nil(err)
+
+    -- test that returns false when the library does not exist
+    ok, err = exec:check_func({
+        name = 'no_such_func_xyz',
+        library = 'no_such_lib_xyz_for_test',
+    })
+    assert.is_false(ok)
+    assert.is_string(err)
+
+    -- test that throws an error if params.library is not string or nil
+    err = assert.throws(exec.check_func, exec, {
+        headers = 'stdio.h',
+        name = 'printf',
+        library = 123,
+    })
+    assert.match(err, 'params.library must be a string or nil')
 end
 
 function testcase.check_type()

@@ -215,6 +215,7 @@ function Executor:link(opts)
         concat(self.ldflags, ' '),
         flags_flatten(self.libdirs, '-L'),
         flags_flatten(self.libs, '-l'),
+        flags_flatten(opts.extra_libs or {}, '-l'),
         '2>',
         self.buffile,
     }, ' ')
@@ -433,16 +434,22 @@ function Executor:check_header(params)
 end
 
 --- check_func check the function is available
---- @param params table  { headers: string|string[]|nil, name: string }
+--- @param params table  { headers: string|string[]|nil, name: string, library: string? }
+---                      library is the name passed to -l (e.g. "m" for -lm)
 --- @return boolean ok
 --- @return string? err
 function Executor:check_func(params)
     assert(type(params) == 'table', 'params must be a table')
     assert(type(params.name) == 'string', 'params.name must be a string')
+    assert(params.library == nil or type(params.library) == 'string',
+           'params.library must be a string or nil')
     return self:link({
         headers = params.headers,
         code = format('void (*function_pointer)(void) = (void (*)(void))%s;',
                       params.name),
+        extra_libs = params.library and {
+            params.library,
+        } or {},
     })
 end
 
