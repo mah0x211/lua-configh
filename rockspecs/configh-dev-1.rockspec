@@ -28,5 +28,6 @@ build = {
         ["configh"] = "lib/configh.lua",
         ["configh.command"] = "lib/command.lua",
         ["configh.executor"] = "lib/executor.lua",
+        ["configh.sortiter"] = "lib/sortiter.lua",
     },
 }
