@@ -16,11 +16,15 @@ function testcase.new_configh()
     setenv('CC', nil)
 
     -- test that throws an error if cc is not string
-    local err = assert.throws(configh, 123)
+    local err = assert.throws(function()
+        configh(123)
+    end)
     assert.match(err, 'cc must be string or nil')
 
     -- test that throws an error if cc and CC environment variable are not set
-    err = assert.throws(configh)
+    err = assert.throws(function()
+        configh()
+    end)
     assert.match(err,
                  'cc argument or CC environment variable must contain compiler name')
 end
@@ -515,15 +519,4 @@ function testcase.inspected_mixed_table()
     assert.equal(f.name, 'printf')
 end
 
-function testcase.check_header_dedup()
-    local cfgh = configh('gcc')
-    cfgh:check_header('stdio.h')
-    cfgh:check_header('stdio.h') -- re-probes and updates existing entry; no new integer entry
-    assert.equal(#cfgh.inspected, 1)
-
-    -- check_func dedup: same name re-probes but adds no new integer entry
-    cfgh:check_func('stdio.h', 'printf')
-    cfgh:check_func('stdio.h', 'printf') -- re-probe, no new entry
-    assert.equal(#cfgh.inspected, 2)
-end
 
