@@ -278,10 +278,13 @@ end
 
 -- check the size of a C type at compile time.
 -- SIZEOF_<TYPE> macro is emitted in config.h on success.
-ok, err = cfgh:check_sizeof('sys/types.h', 'size_t')
+local sz
+ok, err, sz = cfgh:check_sizeof('sys/types.h', 'size_t')
 if not ok then
     print('size_t not found')
     print(err)
+else
+    print('size_t = ' .. sz .. ' bytes')
 end
 
 -- flush the definition macros to the specified pathname.
@@ -550,7 +553,7 @@ Checks whether the specified member field exists in the type.
 - `err:string`: error message if the generated source code fails to compile.
 
 
-## ok, err = configh:check_sizeof( headers, name )
+## ok, err, size = configh:check_sizeof( headers, name )
 
 Determines the size of a C type at compile time.
 
@@ -562,7 +565,8 @@ Determines the size of a C type at compile time.
 **Returns**
 
 - `ok:boolean`: `true` on success, or `false` on failure.
-- `err:string`: error message if the generated source code fails to compile.
+- `err:string?`: error message if the generated source code fails to compile.
+- `size:integer?`: byte size of the type on success, `nil` on failure.
 
 **NOTE**
 
