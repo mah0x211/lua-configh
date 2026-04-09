@@ -368,7 +368,7 @@ end
 ```
 
 
-## report, err = generate( cfg [, label] )
+## report, err = generate( cfg [, label [, stdout]] )
 
 `require('configh.generate')` returns this function.
 
@@ -404,6 +404,9 @@ entry point when all probe information is known up front.
 - `label:string?`: root label used in error messages (default: `'cfg'`).
   Typically set to the module name (e.g. `build.modules` key) when called
   from `luarocks-build-hooks`.
+- `stdout:file*?`: file handle for probe status output (default: `io.stdout`).
+  Overrides the handle used by `configh:set_stdout()` inside the call.
+  Has effect only when `output_status` is `true`.
 
 **Returns**
 
