@@ -60,12 +60,29 @@ return {
         'ENABLE_FEATURE_X',
     },
 
-    -- add CPPFLAGS for compiling test code (optional)
-    -- specify cppflags as strings in an array.
-    cppflags = {
-        '-I/usr/local/include',
-        '-DDEBUG',
-    },
+    -- include directories for compiling test code (optional)
+    -- accepts a string or a string[] (passed as -I flags)
+    incdirs = { '/usr/local/include' },
+
+    -- library search directories for linking test code (optional)
+    -- accepts a string or a string[] (passed as -L flags)
+    libdirs = { '/usr/local/lib' },
+
+    -- library names to link against for test code (optional)
+    -- accepts a string or a string[] (passed as -l flags)
+    libs = { 'pcre2-8' },
+
+    -- extra preprocessor flags (optional)
+    -- accepts a string or a string[] (passed as-is to the compiler)
+    cppflags = { '-DDEBUG' },
+
+    -- extra compiler flags (optional)
+    -- accepts a string or a string[]
+    cflags = { '-std=c11' },
+
+    -- extra linker flags (optional)
+    -- accepts a string or a string[]
+    ldflags = { '-pthread' },
 
     -- headers to check (optional)
     -- array of header file names
@@ -108,6 +125,17 @@ return {
             'STDIN_FILENO',
             'STDOUT_FILENO',
             'POSIX_VERSION',
+        },
+    },
+
+    -- type sizes to measure (optional)
+    -- format: { [header_file] = { type1, type2, ... } }
+    -- SIZEOF_<TYPE_NAME> is defined in config.h with the byte size as value
+    -- <TYPE_NAME> is the type name in uppercase with special chars replaced by _
+    sizeof = {
+        ['stddef.h'] = {
+            'size_t',
+            'ptrdiff_t',
         },
     },
 
