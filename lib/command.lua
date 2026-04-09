@@ -85,11 +85,42 @@ end
 local function print_usage(...)
     local usage = [[
 
-Usage: configh <config.lua> [--out=<filename>]
+Usage: configh <config.lua> [--out=<filename>] [--help]
 
 Arguments:
   <config.lua>        Path to the configuration Lua file.
-  --out=<filename>    Specify the output header file name (default: config.h).
+  --out=<filename>    Output header file name (default: config.h).
+  --help              Show this help message.
+
+Config file format (config.lua must return a table):
+  cc            string?           C compiler (default: $CC)
+  output_status boolean?          print probe results to stdout
+  incdirs       string|string[]?  -I flags
+  libdirs       string|string[]?  -L flags
+  libs          string|string[]?  -l flags
+  cppflags      string|string[]?  extra preprocessor flags
+  cflags        string|string[]?  extra compiler flags
+  ldflags       string|string[]?  extra linker flags
+  features      table?            feature macros; mixed table:
+                                    string keys  -> #define NAME VALUE
+                                    integer keys -> #define NAME
+  headers       string[]?         headers to probe (check_header)
+  funcs         {[hdr]=name[]}?   functions to probe per header
+  types         {[hdr]=name[]}?   C types to probe per header
+  decls         {[hdr]=name[]}?   declarations to probe per header
+  sizeof        {[hdr]=name[]}?   type sizes to measure per header
+  members       {[hdr]={          struct/union members to probe
+                  [type]=name[]
+                }}?
+
+Example config.lua:
+  return {
+    cc            = 'gcc',
+    output_status = true,
+    headers       = { 'stdio.h', 'stdlib.h' },
+    funcs         = { ['stdio.h'] = { 'printf', 'fopen' } },
+    sizeof        = { ['stddef.h'] = { 'size_t' } },
+  }
 
 ]]
     if ... then
@@ -117,6 +148,9 @@ local function parse_args(args)
     local config_file
     for i = 1, #args do
         local arg = args[i]
+        if arg == '--help' then
+            print_usage()
+        end
         local key, val = arg:match('^([^=]+)=(.+)$')
         if key then
             if dupcheck[key] then

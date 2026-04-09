@@ -68,6 +68,14 @@ function testcase.no_args()
     assert.match(output, 'Usage: configh')
     assert.match(output, '<config.lua>')
     assert.match(output, '--out=<filename>')
+    assert.match(output, '--help')
+end
+
+function testcase.help_option()
+    -- test that --help prints usage and exits with success
+    local output = load_configh_output('--help')
+    assert.match(output, 'Usage: configh')
+    assert.match(output, 'Config file format')
 end
 
 function testcase.out_only()
