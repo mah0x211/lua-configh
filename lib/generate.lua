@@ -173,9 +173,10 @@ end
 --- and flushes the result to cfg.output.
 --- @param cfg table
 --- @param label string?  root label for error messages (default: 'cfg')
+--- @param stdout file*?  file handle for probe status output (default: io.stdout)
 --- @return table? report
 --- @return string? err
-local function generate(cfg, label)
+local function generate(cfg, label, stdout)
     label = label or 'cfg'
     assert(type(label) == 'string', 'label must be a string')
     assert(type(cfg) == 'table', label .. ' must be a table')
@@ -201,6 +202,9 @@ local function generate(cfg, label)
 
     local cfgh = configh(cfg.cc)
 
+    if stdout ~= nil then
+        cfgh:set_stdout(stdout)
+    end
     if cfg.output_status ~= nil then
         cfgh:output_status(cfg.output_status)
     end

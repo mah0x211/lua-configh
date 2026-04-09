@@ -212,27 +212,69 @@ function testcase.generate()
     assert.match(err, 'build.modules.mymod["features"] must be a table')
 end
 
+function testcase.generate_with_stdout()
+    -- test that stdout argument is forwarded to cfgh:set_stdout()
+    local tmpfile = os.tmpname()
+    local f = assert(io.open(tmpfile, 'w'))
+    local report, err = generate({
+        cc = 'gcc',
+        output = './test_config.h',
+        output_status = true,
+        headers = {
+            'stdio.h',
+        },
+    }, nil, f)
+    f:close()
+    os.remove('./test_config.h')
+    assert.not_nil(report)
+    assert.is_nil(err)
+    local rf = assert(io.open(tmpfile, 'r'))
+    local content = rf:read('*a')
+    rf:close()
+    os.remove(tmpfile)
+    assert.match(content, 'stdio.h')
+
+    -- test that an invalid stdout type raises error
+    err = assert.throws(generate, {
+        cc = 'gcc',
+        output = './test_config.h',
+    }, nil, 'not a file')
+    assert.match(err, 'outfile must be file or nil')
+end
+
 function testcase.generate_report()
     -- test that report has header entries with is_exists
     local report, err = generate({
         cc = 'gcc',
         output = './test_config.h',
-        headers = {'stdio.h'},
+        headers = {
+            'stdio.h',
+        },
         funcs = {
-            ['stdio.h'] = {'printf'},
+            ['stdio.h'] = {
+                'printf',
+            },
         },
         types = {
-            ['sys/types.h'] = {'pid_t'},
+            ['sys/types.h'] = {
+                'pid_t',
+            },
         },
         decls = {
-            ['unistd.h'] = {'STDIN_FILENO'},
+            ['unistd.h'] = {
+                'STDIN_FILENO',
+            },
         },
         sizeof = {
-            ['stddef.h'] = {'size_t'},
+            ['stddef.h'] = {
+                'size_t',
+            },
         },
         members = {
             ['stdio.h'] = {
-                FILE = {'_flags'},
+                FILE = {
+                    '_flags',
+                },
             },
         },
     })
@@ -271,7 +313,9 @@ function testcase.generate_report()
         cc = 'gcc',
         output = './test_config.h',
         funcs = {
-            ['no_such_header_xyz.h'] = {'some_func_xyz'},
+            ['no_such_header_xyz.h'] = {
+                'some_func_xyz',
+            },
         },
     })
     os.remove('./test_config.h')
@@ -284,16 +328,22 @@ function testcase.generate_report()
     report = generate({
         cc = 'gcc',
         output = './test_config.h',
-        headers = {'stdio.h'},
+        headers = {
+            'stdio.h',
+        },
         funcs = {
-            ['stdio.h'] = {'printf'},
+            ['stdio.h'] = {
+                'printf',
+            },
         },
     })
     os.remove('./test_config.h')
     assert.not_nil(report)
     -- count keys in report['stdio.h']: is_exists + printf only (no duplicate)
     local count = 0
-    for _ in pairs(report['stdio.h']) do count = count + 1 end
+    for _ in pairs(report['stdio.h']) do
+        count = count + 1
+    end
     -- is_exists + printf = 2
     assert.equal(count, 2)
 end
