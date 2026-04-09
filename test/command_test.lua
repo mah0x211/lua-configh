@@ -68,6 +68,14 @@ function testcase.no_args()
     assert.match(output, 'Usage: configh')
     assert.match(output, '<config.lua>')
     assert.match(output, '--out=<filename>')
+    assert.match(output, '--help')
+end
+
+function testcase.help_option()
+    -- test that --help prints usage and exits with success
+    local output = load_configh_output('--help')
+    assert.match(output, 'Usage: configh')
+    assert.match(output, 'Config file format')
 end
 
 function testcase.out_only()
@@ -107,19 +115,21 @@ function testcase.valid_config()
 end
 
 function testcase.invalid_members_format()
-    -- test that configh reports error for invalid members format
-    -- members must be table<string, table<string, string[]>>
+    -- test that member values must be strings; a number value is passed to
+    -- check_member which requires member to be a string.
+    -- the header must exist so that probe_members actually iterates the entries.
     create_test_config_file('tmp_invalid_members.lua', {
+        cc = 'cc',
         members = {
-            sys = {
-                sock = {
-                    123,
-                }, -- number is an error
+            ['stdio.h'] = {
+                FILE = {
+                    123, -- number is an error
+                },
             },
         },
     })
     local output = load_configh_output('tmp_invalid_members.lua')
-    assert.match(output, 'members.sys.sock#1 must be a string, got "number"')
+    assert.match(output, 'member must be string')
 end
 
 function testcase.unknown_option()
@@ -158,7 +168,7 @@ function testcase.invalid_cc_type()
         cc = 123,
     })
     local output = load_configh_output('tmp_invalid_cc.lua')
-    assert.match(output, 'cc must be a string or nil')
+    assert.match(output, 'cc must be string or nil')
 end
 
 function testcase.invalid_output_status_type()
@@ -169,22 +179,24 @@ function testcase.invalid_output_status_type()
         output_status = 'yes',
     })
     local output = load_configh_output('tmp_invalid_output_status.lua')
-    assert.match(output, 'output_status must be a boolean or nil')
+    assert.match(output, 'enabled must be boolean')
 end
 
 function testcase.invalid_features_type()
-    -- test that features must be a string[]|table<string, string|number> or nil
+    -- test that features must be a table or nil
     create_test_config_file('tmp_invalid_features.lua', {
         cc = 'cc',
         -- string is an error, table required
         features = 'HAVE_FEATURE=1',
     })
     local output = load_configh_output('tmp_invalid_features.lua')
-    assert.match(output, 'string[]|table<string, string|number>')
+    assert.match(output, '["features"] must be a table')
 end
 
 function testcase.invalid_features_element_type()
-    -- test that features array elements must be strings
+    -- test that features array elements (integer keys) must be strings used as
+    -- macro names; a number value is passed as the name to set_feature which
+    -- requires a string
     create_test_config_file('tmp_invalid_features_elem.lua', {
         cc = 'cc',
         features = {
@@ -193,11 +205,11 @@ function testcase.invalid_features_element_type()
         },
     })
     local output = load_configh_output('tmp_invalid_features_elem.lua')
-    assert.match(output, 'value must be a string, got')
+    assert.match(output, 'name must be string')
 end
 
 function testcase.invalid_features_value_type()
-    -- test that features key-value values must be string or number
+    -- test that features key-value values must be string, number, or nil
     create_test_config_file('tmp_invalid_features_val.lua', {
         cc = 'cc',
         features = {
@@ -206,82 +218,81 @@ function testcase.invalid_features_value_type()
         },
     })
     local output = load_configh_output('tmp_invalid_features_val.lua')
-    assert.match(output, 'value must be a string or number, got')
+    assert.match(output, 'value must be a string, number or nil')
 end
 
 function testcase.invalid_cppflags_type()
-    -- test that cppflags must be a string[] or nil
+    -- test that cppflags must be a string or string[] (not another type)
     create_test_config_file('tmp_invalid_cppflags.lua', {
         cc = 'cc',
-        -- string is an error, array required
-        cppflags = '-Wall',
+        -- number is an error; string and string[] are both accepted
+        cppflags = 123,
     })
     local output = load_configh_output('tmp_invalid_cppflags.lua')
-    assert.match(output, 'cppflags must be a string[] or nil')
+    assert.match(output, 'flags must be a string or string[]')
 end
 
 function testcase.invalid_headers_type()
-    -- test that headers must be a string[] or nil
+    -- test that headers must be a table (string[]) or nil
     create_test_config_file('tmp_invalid_headers.lua', {
         cc = 'cc',
         -- string is an error, array required
         headers = 'stdio.h',
     })
     local output = load_configh_output('tmp_invalid_headers.lua')
-    assert.match(output, 'headers must be a string[] or nil')
+    assert.match(output, '["headers"] must be a table')
 end
 
 function testcase.invalid_funcs_type()
-    -- test that funcs must be table<string, string[]> or nil
+    -- test that funcs must be a table with string keys (not an array)
     create_test_config_file('tmp_invalid_funcs.lua', {
         cc = 'cc',
-        -- array is an error, table required
+        -- array is an error: integer key is rejected by sortedkpairs
         funcs = {
             'printf',
         },
     })
     local output = load_configh_output('tmp_invalid_funcs.lua')
-    assert.match(output, 'funcs must be a table<string, string[]>')
+    assert.match(output, '["funcs"] keys must be string')
 end
 
 function testcase.invalid_types_type()
-    -- test that types must be table<string, string[]> or nil
+    -- test that types must be a table with string keys (not an array)
     create_test_config_file('tmp_invalid_types.lua', {
         cc = 'cc',
-        -- array is an error, table required
+        -- array is an error: integer key is rejected by sortedkpairs
         types = {
             'pid_t',
         },
     })
     local output = load_configh_output('tmp_invalid_types.lua')
-    assert.match(output, 'types must be a table<string, string[]>')
+    assert.match(output, '["types"] keys must be string')
 end
 
 function testcase.invalid_decls_type()
-    -- test that decls must be table<string, string[]> or nil
+    -- test that decls must be a table with string keys (not an array)
     create_test_config_file('tmp_invalid_decls.lua', {
         cc = 'cc',
-        -- array is an error, table required
+        -- array is an error: integer key is rejected by sortedkpairs
         decls = {
             'errno',
         },
     })
     local output = load_configh_output('tmp_invalid_decls.lua')
-    assert.match(output, 'decls must be a table<string, string[]>')
+    assert.match(output, '["decls"] keys must be string')
 end
 
 function testcase.invalid_members_type()
-    -- test that members must be table<string, table<string, string[]>> or nil
+    -- test that members must be a table with string keys (not an array)
     create_test_config_file('tmp_invalid_members.lua', {
         cc = 'cc',
-        -- array is an error, nested table required
+        -- array is an error: integer key is rejected by sortedkpairs
         members = {
             'sa_family',
         },
     })
     local output = load_configh_output('tmp_invalid_members.lua')
-    assert.match(output,
-                 'members must be a table<string, table<string, string[]>>')
+    assert.match(output, '["members"] keys must be string')
 end
 
 function testcase.with_features()
@@ -713,7 +724,7 @@ function testcase.with_types_for_slash_header()
 end
 
 function testcase.features_with_non_integer_index()
-    -- test that non-integer index in features results in error
+    -- test that non-integer (float) key in features results in error
     create_test_config_file('tmp_features_nonint.lua', {
         cc = 'cc',
         features = {
@@ -721,7 +732,7 @@ function testcase.features_with_non_integer_index()
         },
     })
     local output = load_configh_output('tmp_features_nonint.lua')
-    assert.match(output, 'features index must be an integer, got non-integer')
+    assert.match(output, '["features"] keys must be string or integer')
 end
 
 function testcase.features_with_boolean_key()
@@ -733,11 +744,13 @@ function testcase.features_with_boolean_key()
         },
     })
     local output = load_configh_output('tmp_features_bool.lua')
-    assert.match(output, 'features index must be an integer, got "boolean"')
+    assert.match(output, '["features"] keys must be string or integer')
 end
 
 function testcase.features_array_value_not_string()
-    -- test that non-string value in features array part results in error
+    -- test that non-string value in features array part results in error;
+    -- the integer key is valid but the value 123 is passed as the macro name
+    -- to set_feature which requires a string
     create_test_config_file('tmp_features_arrval.lua', {
         cc = 'cc',
         features = {
@@ -745,7 +758,7 @@ function testcase.features_array_value_not_string()
         },
     })
     local output = load_configh_output('tmp_features_arrval.lua')
-    assert.match(output, 'features[1] value must be a string, got "number"')
+    assert.match(output, 'name must be string')
 end
 
 function testcase.funcs_with_non_string_key()
@@ -759,7 +772,7 @@ function testcase.funcs_with_non_string_key()
         },
     })
     local output = load_configh_output('tmp_funcs_nonstr.lua')
-    assert.match(output, 'funcs[123] must be a string, got "number"')
+    assert.match(output, '["funcs"] keys must be string')
 end
 
 function testcase.members_with_non_string_key()
@@ -775,7 +788,7 @@ function testcase.members_with_non_string_key()
         },
     })
     local output = load_configh_output('tmp_members_nonstr.lua')
-    assert.match(output, 'members[123] must be a string, got "number"')
+    assert.match(output, '["members"] keys must be string')
 end
 
 function testcase.config_execution_error()
@@ -796,6 +809,36 @@ return "string instead of table"
     assert.match(output, 'Error: config file must return a table')
 end
 
+function testcase.with_sizeof()
+    -- test that sizeof in config produces SIZEOF_* macros in config.h
+    create_test_config_file('tmp_sizeof.lua', {
+        cc = 'cc',
+        sizeof = {
+            ['stddef.h'] = {
+                'size_t',
+            },
+        },
+    })
+    local output = load_configh_output('tmp_sizeof.lua', '--out=tmp_sizeof.h')
+
+    -- should succeed silently
+    assert(#output == 0, 'should have no output on success')
+
+    -- check output file contains sizeof macro
+    local content = read_header_file('tmp_sizeof.h')
+    assert.match(content, 'SIZEOF_SIZE_T')
+end
+
+function testcase.with_unknown_key()
+    -- test that unknown key in config triggers an error from generate()
+    create_test_config_file('tmp_unknown_key.lua', {
+        cc = 'cc',
+        unknown_field = 'value',
+    })
+    local output = load_configh_output('tmp_unknown_key.lua')
+    assert.match(output, 'unknown key')
+end
+
 function testcase.flush_failure()
     -- test that flush failure is handled
     create_test_config_file('tmp_flush_fail.lua', {
@@ -804,5 +847,5 @@ function testcase.flush_failure()
     })
     -- use an invalid output path (directory instead of file)
     local output = load_configh_output('tmp_flush_fail.lua', '--out=/dev/null/')
-    assert.match(output, 'Error: failed to write config.h')
+    assert.match(output, 'Error: failed to write /dev/null/')
 end
