@@ -75,6 +75,12 @@ function Executor:init(cc)
         error('cc must be string or nil')
     end
 
+    -- trim whitespace
+    cc = cc:match('^%s*(.-)%s*$')
+    if not cc:find('^[a-zA-Z]') then
+        error('cc must start with an ASCII letter')
+    end
+
     self.cc = cc
     self.features = {}
     self.cppflags = {}

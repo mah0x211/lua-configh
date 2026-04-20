@@ -38,6 +38,18 @@ function testcase.new_executor()
     err = assert.throws(executor)
     assert.match(err,
                  'cc argument or CC environment variable must contain compiler name')
+
+    -- test that throws an error if cc is empty or whitespace-only
+    err = assert.throws(executor, '')
+    assert.match(err, 'cc must start with an ASCII letter')
+    err = assert.throws(executor, '   ')
+    assert.match(err, 'cc must start with an ASCII letter')
+
+    -- test that throws an error if cc does not start with a letter
+    err = assert.throws(executor, '123gcc')
+    assert.match(err, 'cc must start with an ASCII letter')
+    err = assert.throws(executor, '/usr/bin/cc')
+    assert.match(err, 'cc must start with an ASCII letter')
 end
 
 function testcase.makecsrc()
