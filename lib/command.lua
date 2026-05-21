@@ -21,7 +21,7 @@
 --
 local format = string.format
 local type = type
-local isfile = require('io.isfile')
+local isfile = require('configh.isfile')
 local generate = require('configh.generate')
 
 --- file-scope variables

@@ -26,7 +26,7 @@ local gsub = string.gsub
 local open = io.open
 local remove = os.remove
 local vformat = require('print').format
-local isfile = require('io.isfile')
+local isfile = require('configh.isfile')
 local executor = require('configh.executor')
 
 -- disable output buffering as default
