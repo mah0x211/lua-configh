@@ -30,7 +30,7 @@ local execute = os.execute
 local tmpname = os.tmpname
 local remove = os.remove
 local open = io.open
-local gcfn = require('gcfn')
+local gchook = require('configh.gchook')
 
 --- @class configh.executor
 --- @field private __classname string
@@ -582,8 +582,8 @@ local function new(cc)
     }
     self.__classname = format('configh.executor: %s', tostring(self))
     self.buf = assert(open(self.buffile, 'r'))
-    -- create new gcfn object
-    self.gco = gcfn(function(pathname)
+    -- register a GC hook to delete the temp file when executor is collected
+    self.gco = gchook(function(pathname)
         remove(pathname)
     end, self.buffile)
 

@@ -519,4 +519,3 @@ function testcase.inspected_mixed_table()
     assert.equal(f.name, 'printf')
 end
 
-

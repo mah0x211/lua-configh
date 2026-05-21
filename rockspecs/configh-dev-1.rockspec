@@ -11,7 +11,6 @@ description = {
 }
 dependencies = {
     "lua >= 5.1",
-    "gcfn >= 0.3.0",
 }
 build = {
     type = "builtin",
@@ -24,6 +23,7 @@ build = {
         ["configh"] = "lib/configh.lua",
         ["configh.command"] = "lib/command.lua",
         ["configh.executor"] = "lib/executor.lua",
+        ["configh.gchook"] = "lib/gchook.lua",
         ["configh.generate"] = "lib/generate.lua",
         ["configh.isfile"] = "lib/isfile.lua",
         ["configh.sortiter"] = "lib/sortiter.lua",
