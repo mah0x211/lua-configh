@@ -25,7 +25,8 @@ local format = string.format
 local gsub = string.gsub
 local open = io.open
 local remove = os.remove
-local vformat = require('print').format
+local tostring = tostring
+local unpack = table.unpack or unpack
 local isfile = require('configh.isfile')
 local executor = require('configh.executor')
 
@@ -78,9 +79,29 @@ end
 --- @param fmt string
 --- @param ... any
 local function printf(self, fmt, ...)
-    if self.output then
-        self.outfile:write(vformat(fmt, ...))
+    if not self.output then
+        return
     end
+
+    local narg = select('#', ...)
+    if narg == 0 then
+        -- just write the format string directly
+        self.outfile:write(fmt)
+        return
+    end
+
+    -- convert all non-string and non-number arguments to string to avoid format errors
+    local args = {
+        ...,
+    }
+    for i = 1, narg do
+        local arg = args[i]
+        if type(arg) ~= 'string' and type(arg) ~= 'number' then
+            args[i] = tostring(arg)
+        end
+    end
+    local msg = format(fmt, unpack(args, 1, narg))
+    self.outfile:write(msg)
 end
 
 --- flush flush the generated definitions to the file
