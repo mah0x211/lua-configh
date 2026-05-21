@@ -12,7 +12,6 @@ description = {
 dependencies = {
     "lua >= 5.1",
     "gcfn >= 0.3.0",
-    "io-truncate >= 0.1.0",
     "print >= 0.3.0",
 }
 build = {

@@ -30,7 +30,6 @@ local execute = os.execute
 local tmpname = os.tmpname
 local remove = os.remove
 local open = io.open
-local truncate = require('io.truncate')
 local gcfn = require('gcfn')
 
 --- @class configh.executor
@@ -74,7 +73,7 @@ end
 --- @return string err
 local function read_error(exec)
     local err = exec.buf:read('*a')
-    assert(truncate(exec.buffile, 0))
+    assert(open(exec.buffile, 'w')):close()
     exec.buf:seek('set')
     return err
 end
