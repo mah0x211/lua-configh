@@ -25,8 +25,9 @@ local format = string.format
 local gsub = string.gsub
 local open = io.open
 local remove = os.remove
-local vformat = require('print').format
-local isfile = require('io.isfile')
+local tostring = tostring
+local unpack = table.unpack or unpack
+local isfile = require('configh.isfile')
 local executor = require('configh.executor')
 
 -- disable output buffering as default
@@ -45,30 +46,18 @@ local DECL_KIND = {
 }
 
 --- @class configh
+--- @field private __classname string  for debugging purposes
 --- @field inspected table  mixed table: target hash sub-tables for dedup + integer keys for insertion-ordered flat list
 --- @field exec configh.executor
 --- @field output boolean
 --- @field outfile file*
 local Configh = {}
+Configh.__index = Configh
 
---- new create a new configh object
---- @param cc string?
---- @return configh
-function Configh:init(cc)
-    self.inspected = {
-        headers = {},
-        funcs = {},
-        types = {},
-        decls = {},
-        members = {},
-        sizeof = {},
-        libs = {},
-    }
-    self.exec = executor(cc)
-    self.output = false
-    self.outfile = STDOUT
-
-    return self
+--- __tostring returns the class name for debugging purposes
+--- @return string
+function Configh:__tostring()
+    return self.__classname
 end
 
 --- output_status output the execution status
@@ -90,9 +79,29 @@ end
 --- @param fmt string
 --- @param ... any
 local function printf(self, fmt, ...)
-    if self.output then
-        self.outfile:write(vformat(fmt, ...))
+    if not self.output then
+        return
     end
+
+    local narg = select('#', ...)
+    if narg == 0 then
+        -- just write the format string directly
+        self.outfile:write(fmt)
+        return
+    end
+
+    -- convert all non-string and non-number arguments to string to avoid format errors
+    local args = {
+        ...,
+    }
+    for i = 1, narg do
+        local arg = args[i]
+        if type(arg) ~= 'string' and type(arg) ~= 'number' then
+            args[i] = tostring(arg)
+        end
+    end
+    local msg = format(fmt, unpack(args, 1, narg))
+    self.outfile:write(msg)
 end
 
 --- flush flush the generated definitions to the file
@@ -444,5 +453,26 @@ function Configh:check_sizeof(headers, name)
     })
 end
 
-Configh = require('metamodule').new(Configh)
-return Configh
+--- new create a new configh object
+--- @param cc string?
+--- @return configh
+local function new(cc)
+    local self = {
+        inspected = {
+            headers = {},
+            funcs = {},
+            types = {},
+            decls = {},
+            members = {},
+            sizeof = {},
+            libs = {},
+        },
+        output = false,
+        outfile = STDOUT,
+    }
+    self.__classname = format('configh: %s', tostring(self))
+    self.exec = executor(cc)
+    return setmetatable(self, Configh)
+end
+
+return new

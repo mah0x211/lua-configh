@@ -6,5 +6,7 @@ modules = {
     ["configh.command"] = "lib/command.lua",
     ["configh.executor"] = "lib/executor.lua",
     ["configh.generate"] = "lib/generate.lua",
+    ["configh.gchook"] = "lib/gchook.lua",
+    ["configh.isfile"] = "lib/isfile.lua",
     ["configh.sortiter"] = "lib/sortiter.lua",
 }
