@@ -45,30 +45,18 @@ local DECL_KIND = {
 }
 
 --- @class configh
+--- @field private __classname string  for debugging purposes
 --- @field inspected table  mixed table: target hash sub-tables for dedup + integer keys for insertion-ordered flat list
 --- @field exec configh.executor
 --- @field output boolean
 --- @field outfile file*
 local Configh = {}
+Configh.__index = Configh
 
---- new create a new configh object
---- @param cc string?
---- @return configh
-function Configh:init(cc)
-    self.inspected = {
-        headers = {},
-        funcs = {},
-        types = {},
-        decls = {},
-        members = {},
-        sizeof = {},
-        libs = {},
-    }
-    self.exec = executor(cc)
-    self.output = false
-    self.outfile = STDOUT
-
-    return self
+--- __tostring returns the class name for debugging purposes
+--- @return string
+function Configh:__tostring()
+    return self.__classname
 end
 
 --- output_status output the execution status
@@ -444,5 +432,26 @@ function Configh:check_sizeof(headers, name)
     })
 end
 
-Configh = require('metamodule').new(Configh)
-return Configh
+--- new create a new configh object
+--- @param cc string?
+--- @return configh
+local function new(cc)
+    local self = {
+        inspected = {
+            headers = {},
+            funcs = {},
+            types = {},
+            decls = {},
+            members = {},
+            sizeof = {},
+            libs = {},
+        },
+        output = false,
+        outfile = STDOUT,
+    }
+    self.__classname = format('configh: %s', tostring(self))
+    self.exec = executor(cc)
+    return setmetatable(self, Configh)
+end
+
+return new

@@ -34,6 +34,7 @@ local truncate = require('io.truncate')
 local gcfn = require('gcfn')
 
 --- @class configh.executor
+--- @field private __classname string
 --- @field cc string
 --- @field features table<string, integer>|table<integer, string>
 --- @field cppflags string[]
@@ -45,6 +46,13 @@ local gcfn = require('gcfn')
 --- @field buffile string
 --- @field buf file*
 local Executor = {}
+Executor.__index = Executor
+
+--- __tostring returns the class name for debugging purposes
+--- @return string
+function Executor:__tostring()
+    return self.__classname
+end
 
 local LUA_VERSION = tonumber(_VERSION:match('Lua (%d+%.%d+)'))
 
@@ -59,49 +67,6 @@ local function load_env_flags(arr, name)
             arr[#arr + 1] = flag
         end
     end
-end
-
---- new create a new configh.executor object
---- @param cc string?
---- @return configh.executor
-function Executor:init(cc)
-    if cc == nil then
-        cc = getenv('CC')
-        if not cc then
-            error(
-                'cc argument or CC environment variable must contain compiler name')
-        end
-    elseif type(cc) ~= 'string' then
-        error('cc must be string or nil')
-    end
-
-    -- trim whitespace
-    cc = cc:match('^%s*(.-)%s*$')
-    if not cc:find('^[a-zA-Z]') then
-        error('cc must start with an ASCII letter')
-    end
-
-    self.cc = cc
-    self.features = {}
-    self.cppflags = {}
-    self.incdirs = {}
-    self.cflags = {}
-    self.libdirs = {}
-    self.libs = {}
-    self.ldflags = {}
-    self.buffile = assert(tmpname())
-    self.buf = assert(open(self.buffile, 'r'))
-    -- create new gcfn object
-    self.gco = gcfn(function(pathname)
-        remove(pathname)
-    end, self.buffile)
-
-    -- load environment variables for flag fields
-    load_env_flags(self.cppflags, 'CPPFLAGS')
-    load_env_flags(self.cflags, 'CFLAGS')
-    load_env_flags(self.ldflags, 'LDFLAGS')
-
-    return self
 end
 
 --- read_error reads and clears the error buffer
@@ -585,6 +550,50 @@ return (int)((char*)&$VARNAME - (char*)0);]]):gsub('%$([A-Z_]+)', {
     return true, nil, size
 end
 
-Executor = require('metamodule').new(Executor)
-return Executor
+--- new create a new configh.executor object
+--- @param cc string?
+--- @return configh.executor
+local function new(cc)
+    if cc == nil then
+        cc = getenv('CC')
+        if not cc then
+            error(
+                'cc argument or CC environment variable must contain compiler name')
+        end
+    elseif type(cc) ~= 'string' then
+        error('cc must be string or nil')
+    end
 
+    -- trim whitespace
+    cc = cc:match('^%s*(.-)%s*$')
+    if not cc:find('^[a-zA-Z]') then
+        error('cc must start with an ASCII letter')
+    end
+
+    local self = {
+        cc = cc,
+        features = {},
+        cppflags = {},
+        incdirs = {},
+        cflags = {},
+        libdirs = {},
+        libs = {},
+        ldflags = {},
+        buffile = assert(tmpname()),
+    }
+    self.__classname = format('configh.executor: %s', tostring(self))
+    self.buf = assert(open(self.buffile, 'r'))
+    -- create new gcfn object
+    self.gco = gcfn(function(pathname)
+        remove(pathname)
+    end, self.buffile)
+
+    -- load environment variables for flag fields
+    load_env_flags(self.cppflags, 'CPPFLAGS')
+    load_env_flags(self.cflags, 'CFLAGS')
+    load_env_flags(self.ldflags, 'LDFLAGS')
+
+    return setmetatable(self, Executor)
+end
+
+return new
