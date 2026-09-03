@@ -96,6 +96,19 @@ function testcase.check_func()
     assert.is_string(err)
 end
 
+function testcase.check_func_preserves_success_after_later_failure()
+    local cfgh = configh('gcc')
+
+    local ok, err = cfgh:check_func('stdio.h', 'printf')
+    assert.is_true(ok)
+    assert.is_nil(err)
+
+    ok, err = cfgh:check_func(nil, 'printf')
+    assert.is_false(ok)
+    assert.is_string(err)
+    assert.is_true(cfgh.inspected.funcs['printf'].is_exists)
+end
+
 function testcase.check_type()
     local cfgh = configh('gcc')
     assert(cfgh:check_header('sys/socket.h'))
@@ -518,4 +531,3 @@ function testcase.inspected_mixed_table()
     assert.equal(f.target, 'funcs')
     assert.equal(f.name, 'printf')
 end
-

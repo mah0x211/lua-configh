@@ -288,8 +288,9 @@ local EXEC_METHOD = {
 
 --- check executes a probe via the EXEC_METHOD dispatch table and records
 --- the result in inspected. If the name is already registered under
---- target, the existing entry's is_exists is updated without adding a new
---- integer-indexed slot, preventing duplicate lines in config.h output.
+--- target, the existing entry is updated without adding a new integer-indexed
+--- slot, preventing duplicate lines in config.h output. Function entries keep
+--- a successful result from any probe; other targets keep the latest result.
 --- check() validates only the fields it directly references:
 ---   name     string   C identifier or type name; used as the hash key,
 ---                     display label, and HAVE_/SIZEOF_ macro base.
@@ -360,7 +361,11 @@ local function check(self, target, params)
         self.inspected[target][name] = entry
         self.inspected[#self.inspected + 1] = entry
     end
-    entry.is_exists = ok
+    if target == 'funcs' then
+        entry.is_exists = entry.is_exists or ok
+    else
+        entry.is_exists = ok
+    end
     entry.size = target == 'sizeof' and extra or nil
     return ok, err, extra
 end
@@ -379,7 +384,9 @@ end
 
 --- check_func check whether the function exists. When library is given, the
 --- link probe also uses -l<library>. The first probe for a given library
---- name also emits a HAVE_LIB_<LIBRARY> macro in flush().
+--- name also emits a HAVE_LIB_<LIBRARY> macro in flush(). Each call returns
+--- its own probe result, while repeated probes of the same function are
+--- aggregated so that any success is retained for flush().
 --- @param headers string|string[]|nil  header files that declare the function
 --- @param name string  function name (e.g. "printf")
 --- @param library string?  optional library name to link (e.g. "m" for -lm)

@@ -680,6 +680,13 @@ Checks whether the specified function exists.
 - `ok:boolean`: `true` on success, or `false` on failure.
 - `err:string?`: error message if the generated source code fails to compile or link.
 
+**NOTE**
+
+- Each call returns the result of that individual probe. If the same function
+  is checked more than once before `flush()`, `HAVE_<FUNC>` is defined when any
+  of those probes succeeds. Header-specific results returned by
+  `configh.generate()` remain independent.
+
 
 ## ok, err = configh:check_type( headers, name )
 
