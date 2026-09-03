@@ -212,6 +212,31 @@ function testcase.generate()
     assert.match(err, 'build.modules.mymod["features"] must be a table')
 end
 
+function testcase.generate_aggregates_repeated_func_results()
+    local report, err = generate({
+        cc = 'gcc',
+        output = './test_config.h',
+        funcs = {
+            ['stdio.h'] = {
+                'printf',
+            },
+            ['stdlib.h'] = {
+                'printf',
+            },
+        },
+    })
+    local f = assert(io.open('./test_config.h', 'r'))
+    local content = f:read('*a')
+    f:close()
+    os.remove('./test_config.h')
+
+    assert.not_nil(report)
+    assert.is_nil(err)
+    assert.is_true(report['stdio.h']['printf'])
+    assert.is_false(report['stdlib.h']['printf'])
+    assert.match(content, '\n#define HAVE_PRINTF 1\n')
+end
+
 function testcase.generate_with_stdout()
     -- test that stdout argument is forwarded to cfgh:set_stdout()
     local tmpfile = os.tmpname()
